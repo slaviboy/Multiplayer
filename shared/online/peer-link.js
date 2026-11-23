@@ -28,6 +28,36 @@ const BYE_GRACE_MS = 250;
 // joined, so a new link must wait until the previous one has really left.
 const leaving = new Map(); // roomId -> Promise
 
+// Connection diagnostics in the console: "[online +3.2s] ..." lines show where
+// the time goes (relays, a WebRTC attempt failing, the handshake).
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+const T0 = now();
+const log = (...a) => console.info(`[online +${((now() - T0) / 1000).toFixed(1)}s]`, ...a);
+const candidateTypes = (sdp) => {
+  const n = {};
+  for (const m of String(sdp || '').matchAll(/ typ (\w+)/g)) n[m[1]] = (n[m[1]] || 0) + 1;
+  return JSON.stringify(n);
+};
+let pcCount = 0;
+const LoggedPeerConnection =
+  typeof RTCPeerConnection === 'undefined'
+    ? undefined
+    : class extends RTCPeerConnection {
+        constructor(config) {
+          super(config);
+          const id = ++pcCount;
+          this.addEventListener('connectionstatechange', () => log(`webrtc #${id} ${this.connectionState}`));
+          this.addEventListener('icegatheringstatechange', () => {
+            if (this.iceGatheringState === 'complete')
+              log(`webrtc #${id} own candidates ${candidateTypes(this.localDescription && this.localDescription.sdp)}`);
+          });
+        }
+        async setRemoteDescription(desc) {
+          log(`webrtc remote ${desc && desc.type}, candidates ${candidateTypes(desc && desc.sdp)}`);
+          return super.setRemoteDescription(desc);
+        }
+      };
+
 export class PeerLink {
   /**
    * @param {object} o
@@ -80,15 +110,20 @@ export class PeerLink {
     while (leaving.has(roomId)) await leaving.get(roomId);
     if (this.closed) return;
     this.lastJoinAt = Date.now();
+    log(`joining room as ${this.role}`);
     const room = joinRoom(
-      { appId: this.appId, password: this.secret, maxReceiveBytes: MAX_RECEIVE_BYTES, trickleIce: false },
+      { appId: this.appId, password: this.secret, maxReceiveBytes: MAX_RECEIVE_BYTES, trickleIce: false, rtcPolyfill: LoggedPeerConnection },
       roomId,
       { onJoinError: (details) => this.onJoinError(room, details) },
     );
     this.room = room;
     this.action = room.makeAction('m');
     this.action.onMessage = (data, meta) => room === this.room && this.receive(data, meta && meta.peerId);
-    room.onPeerJoin = (peerId) => room === this.room && this.sendTo(peerId, this.helloMessage());
+    room.onPeerJoin = (peerId) => {
+      if (room !== this.room) return;
+      log('peer joined, saying hello');
+      this.sendTo(peerId, this.helloMessage());
+    };
     room.onPeerLeave = (peerId) => {
       if (room !== this.room || peerId !== this.partnerId) return;
       this.setStatus('away');
@@ -113,6 +148,7 @@ export class PeerLink {
       const wait = this.lastJoinAt + REJOIN_MIN_GAP_MS - Date.now();
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
       if (this.closed || this.status === 'connected') return;
+      log('connection attempt failed, rejoining the room');
       await leaveRoom(this.roomId, this.room, 0);
       this.room = this.action = null;
       await this.joinRoom();
@@ -128,6 +164,7 @@ export class PeerLink {
   setStatus(status, info = {}) {
     if (this.closed) return;
     this.status = status;
+    log(`status ${status}`, info.reason || (info.reconnect ? 'reconnect' : ''));
     this.onStatus && this.onStatus(status, info);
   }
 
