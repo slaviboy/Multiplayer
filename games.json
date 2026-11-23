@@ -1,0 +1,14 @@
+{
+  "games": [
+    {
+      "id": "stan-and-lisa",
+      "title": "Stan & Lisa and Friends",
+      "path": "games/stan-and-lisa/",
+      "description": "Co-op puzzle platformer. Fire and water work together, with a little help from their friends, to reach the exit doors.",
+      "thumbnail": "games/stan-and-lisa/thumbnail.jpg",
+      "players": "1–2",
+      "online": true,
+      "tags": ["Co-op", "Puzzle", "Platformer"]
+    }
+  ]
+}

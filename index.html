@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Multiplayer Games</title>
+    <meta name="description" content="Browser games you can play alone or with a friend. Share a link or QR code, no install, no account." />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" type="image/svg+xml" href="hub/icon.svg" />
+    <link rel="stylesheet" href="hub/hub.css" />
+    <script type="module" src="hub/hub.js"></script>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Free browser games</p>
+        <h1>Multiplayer Games</h1>
+        <p class="lede">Play alone or with a friend on another device. No install, no account: send a link or show a QR code.</p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section aria-labelledby="games-title">
+        <h2 id="games-title" class="section-title">Games</h2>
+        <ul id="games" class="games" aria-live="polite">
+          <li class="game game--loading" aria-hidden="true"></li>
+        </ul>
+        <noscript>
+          <p class="notice">Turn on JavaScript to see the list, or open <a href="games/stan-and-lisa/">Stan &amp; Lisa and Friends</a> directly.</p>
+        </noscript>
+      </section>
+
+      <section class="how" aria-labelledby="how-title">
+        <h2 id="how-title" class="section-title">Playing online</h2>
+        <ol class="steps">
+          <li>
+            <span class="step-n" aria-hidden="true">1</span>
+            <div>
+              <h3>Pick your character</h3>
+              <p>Open a game and choose <strong>Play online</strong>.</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-n" aria-hidden="true">2</span>
+            <div>
+              <h3>Send the link</h3>
+              <p>Copy it, share it, or let your friend scan the QR code.</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-n" aria-hidden="true">3</span>
+            <div>
+              <h3>Play together</h3>
+              <p>Your friend gets the other character. The connection is direct between your browsers.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="wrap footer">
+      <p>Online play uses WebRTC. Public Nostr relays only help the two browsers find each other.</p>
+    </footer>
+  </body>
+</html>
