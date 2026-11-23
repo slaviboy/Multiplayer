@@ -342,7 +342,7 @@ export function buildLevel(src) {
 
 export async function loadSources(dir = SRC_DIR) {
   const files = readdirSync(dir)
-    .filter((f) => f.endsWith('.mjs'))
+    .filter((f) => f.endsWith('.mjs') && !f.startsWith('_')) // _helpers are not levels
     .sort();
   const out = [];
   for (const f of files) {

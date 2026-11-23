@@ -669,7 +669,9 @@ function patchCharacters(Character, MainCharacter) {
     const level = this.game && this.game.level;
     if (level && level._ext && level._ext.piggyback) {
       const top = this.makeTrapezoid(0.34, 0.42, 0.72, 0.46, { categoryBits: 257, maskBits: 4353 }, 0, 5);
-      top.m_filter.groupIndex = 12;
+      // negative group: the two heads never collide with each other (they would wedge
+      // together when the characters overlap); feet still land on them
+      top.m_filter.groupIndex = -12;
       top.m_userData = 'oneway';
     }
     return result;
