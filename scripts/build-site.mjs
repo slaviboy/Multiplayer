@@ -6,7 +6,7 @@ import { basename, sep } from 'node:path';
 
 const OUT = '_site';
 const INCLUDE = ['index.html', 'games.json', 'hub', 'shared', 'games'];
-const SKIP_DIRS = new Set(['levels-src', 'node_modules', '.git']);
+const SKIP_DIRS = new Set(['levels-src', 'art-src', 'node_modules', '.git']);
 const SKIP_FILE = [/_BACKUP\./, / - Copy\./, /\.md$/];
 
 rmSync(OUT, { recursive: true, force: true });
