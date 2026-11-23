@@ -210,6 +210,43 @@ export function buildLevel(src) {
         x: x0 * TILE,
         y: y0 * TILE,
       });
+    } else if (kind === 'torch') {
+      // extras/extras.js: a light source centred on the top edge of its marker cell
+      for (const [c, r] of markers.get(at) || [cellOf(at)]) {
+        objects.push({
+          height: 64,
+          id: nextId++,
+          name: '',
+          properties: properties({ group: props.group, radius: props.radius, initialState: props.initialState }),
+          rotation: 0,
+          type: 'torch',
+          visible: true,
+          width: 32,
+          x: c * TILE,
+          y: (r - 1) * TILE,
+        });
+      }
+    } else if (kind === 'monster' || kind === 'fireflies') {
+      // extras/extras.js: polyline objects. Monster path points are [column, floorRow]
+      // (it walks on that floor, centred in the column); firefly points are cell centres.
+      if (!Array.isArray(obj.path) || obj.path.length < 2) fail(`${kind} needs path: [[col,row], ...]`);
+      const pts = obj.path.map(([c, r]) =>
+        kind === 'monster' ? { x: c * TILE + TILE / 2, y: r * TILE } : { x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 },
+      );
+      const { path: _path, ...rest } = props;
+      objects.push({
+        height: 0,
+        id: nextId++,
+        name: '',
+        polyline: pts.map((p) => ({ x: p.x - pts[0].x, y: p.y - pts[0].y })),
+        properties: properties(rest),
+        rotation: 0,
+        type: kind,
+        visible: true,
+        width: 0,
+        x: pts[0].x,
+        y: pts[0].y,
+      });
     } else if (kind === 'portal') {
       if (!pos) fail('portal needs pos: [col, bottomRow]');
       tileObject('portal', pos[0] * TILE, pos[1] * TILE, {
@@ -238,7 +275,7 @@ export function buildLevel(src) {
     if (count(gid) !== 1) fail(`needs exactly one ${what}, found ${count(gid)}`);
   }
 
-  return {
+  const tiled = {
     compressionlevel: -1,
     height,
     infinite: false,
@@ -259,6 +296,10 @@ export function buildLevel(src) {
     version: '1.6',
     width,
   };
+  // level-wide options for extras/extras.js: darkness ('dark' | 'reveal'), lightRadius, piggyback
+  const mapProps = properties(src.properties || {});
+  if (mapProps.length) tiled.properties = mapProps;
+  return tiled;
 }
 
 export async function loadSources(dir = SRC_DIR) {
