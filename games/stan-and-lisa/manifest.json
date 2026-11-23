@@ -1,0 +1,15 @@
+{
+  "short_name": "Stan & Lisa",
+  "name": "Stan & Lisa and Friends",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "scope": "./"
+}

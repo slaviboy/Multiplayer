@@ -1,0 +1,18 @@
+{
+    "id": "friends",
+    "type": "legacy",
+    "assets": "friends",
+    "temples": "friends",
+    "canRevive": true,
+    "adCapping": 20,
+    "initialCap": 20,
+    "showAdsOnlyOnStartLevel": true,
+    "showAdsOnPlayButton": true,
+    "rewardTokens": 1,
+    "title": "Stan &amp; Lisa and Friends",
+    "app_title": "Stan & Lisa and Friends",
+    "short_title": "Friends",
+    "policy_url": "",
+    "walkthrough_link_NOT_YET": "",
+    "available_stores": {}
+}
