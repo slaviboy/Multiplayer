@@ -3,6 +3,7 @@
 // right shaft to the top. Lisa pulls the lever at the top, which raises the
 // lift Stan is standing on (at the end of the middle ledge) to the top floor.
 // Lifts move 2 tiles per second (engine constant), so the shafts are kept short.
+// The top lever is mirrored: Lisa reaches it from the right and pushes it left.
 export default {
   file: 'coop_07_three_lifts.json',
   title: 'Three Lifts',
@@ -42,7 +43,46 @@ export default {
     { kind: 'platform', at: 'E', dx: 0, dy: -7, group: 1 },
     { kind: 'pusher', at: '2', group: 2 },
     { kind: 'platform', at: 'H', dx: 0, dy: -17, group: 2 },
-    { kind: 'lever', at: '3', group: 3 },
+    { kind: 'leverMirrored', at: '3', group: 3 },
     { kind: 'platform', rect: [12, 17, 3, 1], dx: 0, dy: -10, group: 3 },
   ],
+  walkthrough: {
+    fb: [
+      { jump: 'left', to: 2.6 },
+      { go: 2 },
+      { set: 'onE1' },
+      { wait: 'p1' },
+      { idle: 4.2 },
+      { go: 6.5 },
+      { set: 'stanUp' },
+      { wait: 'onE2' },
+      { go: 8 },
+      { set: 'p2' },
+      { wait: 'lisaUp' },
+      { go: 13 },
+      { set: 'onE3' },
+      { wait: 'e3' },
+      { idle: 5.5 },
+      { go: 4 },
+    ],
+    wg: [
+      { wait: 'onE1' },
+      { go: 19 },
+      { set: 'p1' },
+      { wait: 'stanUp' },
+      { go: 24.3 },
+      { jump: 'right', to: 25.8 },
+      { go: 26 },
+      { set: 'onE2' },
+      { wait: 'p2' },
+      { idle: 9 },
+      { go: 23.5 },
+      { set: 'lisaUp' },
+      { wait: 'onE3' },
+      { go: 18.6 },
+      { set: 'e3' },
+      { idle: 5.5 },
+      { go: 7 },
+    ],
+  },
 };

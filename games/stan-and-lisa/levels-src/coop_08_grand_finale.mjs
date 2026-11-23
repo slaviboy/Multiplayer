@@ -3,9 +3,10 @@
 //    crosses and pulls lever 6 on the far side, which keeps the bridge up.
 // 2. Push the box against the ledge, climb it, and pull lever 2. That opens the
 //    gate at the top of the wall; drop down into the last room.
-// 3. The lift to the doors listens to two levers, one at the bottom (3) and one
-//    at the top (5). One player stands on the lift while the other pulls lever 3.
-//    The player at the top pulls lever 5 to send it back for the second player.
+// 3. Lisa drops into the last room first, hops the lava onto the water and steps
+//    on the lift. Stan drops onto button 3, which carries her up. Stan steps off
+//    (onto the lava) so the lift comes back, hops the water onto it, and Lisa
+//    pushes the mirrored lever 5 at the top, which sends it up again for him.
 //    The silver diamond floats above the top of the lift.
 export default {
   file: 'coop_08_grand_finale.json',
@@ -22,7 +23,7 @@ export default {
     '###################..........#.......v.#',
     '###################..........#.........#',
     '###################..........#.........#',
-    '###################..........#A.B.5....#',
+    '###################..........#5.A.B....#',
     '###################..........#######...#',
     '###################..........#######...#',
     '###################..........#.........#',
@@ -31,11 +32,11 @@ export default {
     '###################..r.b.....G.........#',
     '###################..........G.........#',
     '###################.......2..G.........#',
-    '###################......#####.........#',
-    '###################......#####.........#',
-    '#........................#####.........#',
-    '#........................#####..b.r....#',
-    '#S.W.1...r.b...6...X.....#####3.....EEE#',
+    '###################.....######.........#',
+    '###################.....######.........#',
+    '#.......................######.........#',
+    '#.......................######..b.r....#',
+    '#S.W.1...r.b...6...X....######3.....EEE#',
     '########ggggggg#################llww####',
     '########################################',
   ],
@@ -46,8 +47,59 @@ export default {
     { kind: 'box', at: 'X' },
     { kind: 'lever', at: '2', group: 2 },
     { kind: 'platform', at: 'G', dx: 0, dy: -3, group: 2 },
-    { kind: 'lever', at: '3', group: 3 },
-    { kind: 'lever', at: '5', group: 3 },
+    { kind: 'pusher', at: '3', group: 3 },
+    { kind: 'leverMirrored', at: '5', group: 3 },
     { kind: 'platform', at: 'E', dx: 0, dy: -12, group: 3 },
   ],
+  walkthrough: {
+    fb: [
+      { go: 6 },
+      { set: 'bridgeUp' },
+      { wait: 'bridgeLocked' },
+      { idle: 0.6 },
+      { go: 17.5 },
+      { go: 18.4, tol: 0.5 },
+      { go: 21.4, tol: 0.7, max: 15 },
+      { set: 'boxed' },
+      { jump: 'right', to: 22.6 },
+      { jump: 'right', to: 24.8 },
+      { go: 28.4 },
+      { set: 'gateOpen' },
+      { wait: 'onLift' },
+      { go: 31 },
+      { wait: 'lisaTop' },
+      { go: 32.6 },
+      { idle: 6.5 },
+      { jump: 'right', to: 37 },
+      { go: 37 },
+      { set: 'stanOnLift' },
+      { wait: 'raised' },
+      { idle: 6.5 },
+      { go: 33 },
+    ],
+    wg: [
+      { wait: 'bridgeUp' },
+      { idle: 1 },
+      { go: 17.5 },
+      { set: 'bridgeLocked' },
+      { wait: 'boxed' },
+      { go: 21.5 },
+      { jump: 'right', to: 22.6 },
+      { jump: 'right', to: 24.8 },
+      { wait: 'gateOpen' },
+      { idle: 1.8 },
+      { go: 30.5 },
+      { jump: 'right', to: 34.4 },
+      { jump: 'right', to: 37 },
+      { go: 37 },
+      { set: 'onLift' },
+      { idle: 7.5 },
+      { set: 'lisaTop' },
+      { go: 35 },
+      { wait: 'stanOnLift' },
+      { go: 31 },
+      { set: 'raised' },
+      { go: 35 },
+    ],
+  },
 };

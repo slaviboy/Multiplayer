@@ -34,4 +34,28 @@ export default {
     { kind: 'lever', at: '2', group: 1 },
     { kind: 'platform', at: 'G', dx: 0, dy: -3, group: 1 },
   ],
+  walkthrough: {
+    fb: [
+      { wait: 'atGate' },
+      { go: 3 },
+      { set: 'pressed' },
+      { go: 6 },
+      { wait: 'leverOn' },
+      { go: 10.6 },
+      { jump: 'right', to: 15.4 },
+      { go: 35 },
+    ],
+    wg: [
+      { go: 18.5 },
+      { jump: 'right', to: 23.3 },
+      { go: 27.6 },
+      { set: 'atGate' },
+      { wait: 'pressed' },
+      { idle: 0.9 },
+      { go: 31, max: 4 },
+      { go: 34.4 },
+      { set: 'leverOn' },
+      { go: 37 },
+    ],
+  },
 };

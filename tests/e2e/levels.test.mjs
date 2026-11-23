@@ -58,6 +58,9 @@ test('every co-op level can be finished (bot walkthrough)', { timeout: 3_600_000
         failures.push(`${def.file}: no walkthrough`);
         continue;
       }
+      // a fresh game per level, so nothing from the previous level carries over
+      await page.reload();
+      await waitForState(page, 'menu');
       const { result, log } = await playLevel(page, def.file, def.walkthrough);
       console.log(`${def.file}: ${result}`);
       if (result !== 'win') {
