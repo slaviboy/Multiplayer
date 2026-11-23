@@ -681,9 +681,32 @@ function patchCharacters(Character, MainCharacter) {
   });
 }
 
+// The bundle stores keys under `event.code` strings (`_keys.KeyD`), but Phaser's
+// Keyboard.reset only walks the array's numeric indices, so a key never got
+// released when its keyup happened elsewhere (another tab, another window): after
+// Resume the character kept running. Reset every key, and do it as soon as the
+// page loses focus, since the keyup will go to whatever has focus instead.
+function patchKeyboard(game) {
+  const K = window.Phaser.Keyboard.prototype;
+  if (!K.reset._ext) {
+    const reset = K.reset;
+    K.reset = function (...args) {
+      reset.apply(this, args);
+      // Code-named keys were never reset before, so their handlers have always
+      // survived a hard reset; keep it that way and only release them.
+      for (const id of Object.keys(this._keys)) if (!/^\d+$/.test(id) && this._keys[id]) this._keys[id].reset(false);
+    };
+    K.reset._ext = true;
+  }
+  const release = () => game.input && game.input.keyboard && game.input.keyboard.reset(false);
+  window.addEventListener('blur', release);
+  document.addEventListener('visibilitychange', () => document.hidden && release());
+}
+
 function init(game) {
   GAME = game;
   const req = window.require;
+  patchKeyboard(game);
   const MechManager = req('States/Level/MechManager');
   const { Torch, Monster, Fireflies, Thorns, Checkpoint, Ladder } = makeDevices(window.Phaser);
   MechManager.classNames.torch = Torch;

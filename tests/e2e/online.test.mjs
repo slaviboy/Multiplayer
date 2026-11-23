@@ -137,6 +137,32 @@ test('host shares a link, guest joins as the other character, and play stays in 
     await guest.evaluate(() => void Phaser.GAMES[0].level.togglePause());
     await host.waitForFunction(() => Phaser.GAMES[0].paused === false, null, { timeout: 5000 });
 
+    // --- hiding the tab pauses only that player's game, and a key held when the
+    //     tab was left (its keyup goes to the other tab) doesn't stay pressed
+    await guest.keyboard.down('KeyD');
+    assert.equal(await guest.evaluate(() => !!Phaser.GAMES[0].input.keyboard.isDown('KeyD')), true);
+    await guest.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    assert.equal(await guest.evaluate(() => Phaser.GAMES[0].paused), true, 'hidden tab pauses locally');
+    await host.waitForTimeout(1000);
+    assert.equal(await host.evaluate(() => Phaser.GAMES[0].paused), false, 'the partner keeps playing');
+    await guest.evaluate(() => {
+      delete document.hidden; // back to the prototype getter
+      document.dispatchEvent(new Event('visibilitychange'));
+      Phaser.GAMES[0].level.togglePause(); // the player presses Resume
+    });
+    assert.equal(await guest.evaluate(() => Phaser.GAMES[0].paused), false);
+    assert.equal(
+      await guest.evaluate(() => !!Phaser.GAMES[0].input.keyboard.isDown('KeyD')),
+      false,
+      'key released when the tab was hidden',
+    );
+    await guest.keyboard.up('KeyD');
+    await host.waitForTimeout(300);
+    assert.equal(await host.evaluate(() => Phaser.GAMES[0].paused), false);
+
     // --- a death ends the level for both; the guest's Retry restarts it for both
     await guest.evaluate(() => void Phaser.GAMES[0].level.pers2.kill());
     await Promise.all([

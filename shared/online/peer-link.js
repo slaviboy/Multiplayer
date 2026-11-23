@@ -6,12 +6,27 @@
 // The token identifies the guest for the rest of the session: a guest that
 // reconnects (reload, network blip) presents it and gets its seat back; anyone
 // else who somehow has the link gets `full` and is ignored.
+//
+// Connecting fast: Trystero announces a few times in the first seconds after
+// joining, then only once a minute. When a WebRTC attempt fails after the
+// offer/answer exchange it gives up on that attempt silently (~23 s) and the
+// next try waits for the next announce, so one failed attempt used to cost up to
+// a minute. We rejoin the room as soon as an attempt fails, which restarts the
+// fast announces on both sides. ICE candidates travel inside the offer/answer
+// (trickleIce: false) so a relay dropping or rate-limiting one of many small
+// candidate messages can't leave a peer without the other's public address.
 import { joinRoom } from '../vendor/trystero-nostr.mjs';
 import { PROTOCOL_VERSION, createToken, isEnvelope, roomFor } from './protocol.js';
 
 const GUEST_CONNECT_TIMEOUT_MS = 45_000;
 const PING_EVERY_MS = 2_000;
 const MAX_RECEIVE_BYTES = 64 * 1024;
+const REJOIN_MIN_GAP_MS = 4_000;
+const BYE_GRACE_MS = 250;
+
+// Trystero hands back the *same* room object while a room with that id is still
+// joined, so a new link must wait until the previous one has really left.
+const leaving = new Map(); // roomId -> Promise
 
 export class PeerLink {
   /**
@@ -35,32 +50,19 @@ export class PeerLink {
     this.status = 'idle';
     this.rtt = null;
     this.room = null;
+    this.roomId = null;
     this.action = null;
     this.everConnected = false;
     this.timers = [];
     this.closed = false;
+    this.rejoining = false;
+    this.lastJoinAt = 0;
   }
 
   async start() {
-    const roomId = await roomFor(this.appId, this.secret);
+    this.roomId = await roomFor(this.appId, this.secret);
+    await this.joinRoom();
     if (this.closed) return;
-    this.room = joinRoom(
-      { appId: this.appId, password: this.secret, maxReceiveBytes: MAX_RECEIVE_BYTES },
-      roomId,
-      {
-        onJoinError: (details) => {
-          console.warn('[online] join error', details);
-          if (this.status !== 'connected') this.setStatus('error', { reason: 'network' });
-        },
-      },
-    );
-    this.action = this.room.makeAction('m');
-    this.action.onMessage = (data, meta) => this.receive(data, meta && meta.peerId);
-    this.room.onPeerJoin = (peerId) => this.sendTo(peerId, this.helloMessage());
-    this.room.onPeerLeave = (peerId) => {
-      if (peerId !== this.partnerId) return;
-      this.setStatus('away');
-    };
 
     this.setStatus(this.role === 'host' ? 'waiting' : 'connecting');
     if (this.role === 'guest') {
@@ -71,6 +73,52 @@ export class PeerLink {
       );
     }
     this.timers.push(setInterval(() => this.measurePing(), PING_EVERY_MS));
+  }
+
+  async joinRoom() {
+    const roomId = this.roomId;
+    while (leaving.has(roomId)) await leaving.get(roomId);
+    if (this.closed) return;
+    this.lastJoinAt = Date.now();
+    const room = joinRoom(
+      { appId: this.appId, password: this.secret, maxReceiveBytes: MAX_RECEIVE_BYTES, trickleIce: false },
+      roomId,
+      { onJoinError: (details) => this.onJoinError(room, details) },
+    );
+    this.room = room;
+    this.action = room.makeAction('m');
+    this.action.onMessage = (data, meta) => room === this.room && this.receive(data, meta && meta.peerId);
+    room.onPeerJoin = (peerId) => room === this.room && this.sendTo(peerId, this.helloMessage());
+    room.onPeerLeave = (peerId) => {
+      if (room !== this.room || peerId !== this.partnerId) return;
+      this.setStatus('away');
+    };
+  }
+
+  onJoinError(room, details) {
+    console.warn('[online] join error', details);
+    if (room !== this.room || this.status === 'connected') return;
+    // A wrong password means a stranger in the same room; ignore them.
+    if (/password/i.test((details && details.error) || '')) return;
+    // A connection attempt failed: try again right away rather than waiting for
+    // Trystero's next once-a-minute announce. The guest still gives up after
+    // GUEST_CONNECT_TIMEOUT_MS.
+    this.rejoin();
+  }
+
+  async rejoin() {
+    if (this.closed || this.rejoining) return;
+    this.rejoining = true;
+    try {
+      const wait = this.lastJoinAt + REJOIN_MIN_GAP_MS - Date.now();
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      if (this.closed || this.status === 'connected') return;
+      await leaveRoom(this.roomId, this.room, 0);
+      this.room = this.action = null;
+      await this.joinRoom();
+    } finally {
+      this.rejoining = false;
+    }
   }
 
   helloMessage() {
@@ -168,8 +216,24 @@ export class PeerLink {
       clearTimeout(id);
       clearInterval(id);
     });
-    const room = this.room;
-    // Give the bye a moment to leave before the channel closes.
-    setTimeout(() => room && room.leave(), 250);
+    // Give a bye a moment to leave before the channel closes.
+    leaveRoom(this.roomId, this.room, this.status === 'connected' ? BYE_GRACE_MS : 0);
   }
+}
+
+function leaveRoom(roomId, room, delayMs) {
+  if (!room) return Promise.resolve();
+  const done = (async () => {
+    if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+    try {
+      await room.leave();
+    } catch {
+      /* already gone */
+    }
+  })();
+  const entry = done.finally(() => {
+    if (leaving.get(roomId) === entry) leaving.delete(roomId);
+  });
+  leaving.set(roomId, entry);
+  return entry;
 }

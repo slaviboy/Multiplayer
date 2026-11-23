@@ -965,7 +965,12 @@ function patchLevel(Level) {
 
   wrap(L, 'togglePause', function (orig, args) {
     const result = orig.apply(this, args);
-    if (this._net && S.link && !S.applyingRemote) send({ t: 'pause', s: this._net.seq, on: !!this.game.paused });
+    const paused = !!this.game.paused;
+    // The bundle pauses the level when the window loses focus or the tab is hidden
+    // (config.pauseOnBlur). That pause is only for this player; the partner keeps
+    // playing. A pause they choose themselves (button, Esc) is shared.
+    const focusLoss = paused && (document.hidden || !document.hasFocus());
+    if (this._net && S.link && !S.applyingRemote && !focusLoss) send({ t: 'pause', s: this._net.seq, on: paused });
     return result;
   });
 
