@@ -8,6 +8,8 @@
 //                       wherever a character (or a lit torch) has been
 //   lightRadius: <px>   radius of each character's light in dark levels
 //   piggyback: true     Stan and Lisa can stand on each other's heads
+//   environment: <name> outdoor look and weather (snow, rain, storm, spring, summer,
+//                       winter, lake); see environments.js
 //
 // New objects (Objects layer, by `type`):
 //   torch      light source; with a `group` it only burns while that group is on
@@ -20,6 +22,8 @@
 //   ladder     hold jump/up to climb; with a `group` it is rolled up until lowered
 // Torch, monster, fireflies and ladder are "receivers": they follow the group state like platforms do, so
 // online play syncs them through the host's world snapshot.
+
+import { patchEnvironments } from './environments.js';
 
 const ART = {
   ext_torch: 'extras/art/torch.svg',
@@ -824,6 +828,7 @@ function init(game) {
   MechManager.classNames.checkpoint = Checkpoint;
   MechManager.classNames.ladder = Ladder;
   patchLevel(req('States/Level/Level'));
+  patchEnvironments(req); // after patchLevel: it relies on the map properties read there
   patchCharacters(req('States/Level/Characters/Character'), req('States/Level/Characters/MainCharacter'));
   window.__extras = { ready: true };
 }
