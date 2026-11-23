@@ -1103,9 +1103,28 @@ function injectStrings(game) {
   }
 }
 
+// Phaser only asks for the next animation frame after game.update() returns, so a
+// single exception anywhere in a frame would freeze the game for good (for both
+// players when online). Log it and keep the loop alive instead.
+function guardGameLoop() {
+  const RAF = window.Phaser.RequestAnimationFrame && window.Phaser.RequestAnimationFrame.prototype;
+  if (!RAF || RAF.updateRAF._olGuard) return;
+  const updateRAF = RAF.updateRAF;
+  RAF.updateRAF = function (time) {
+    try {
+      updateRAF.call(this, time);
+    } catch (err) {
+      console.error('[game] frame error', err);
+      if (this.isRunning) this._timeOutID = window.requestAnimationFrame(this._onLoop);
+    }
+  };
+  RAF.updateRAF._olGuard = true;
+}
+
 function init(game) {
   const req = window.require;
   S.game = game;
+  guardGameLoop();
   S.mods = {
     Level: req('States/Level/Level'),
     Character: req('States/Level/Characters/Character'),
