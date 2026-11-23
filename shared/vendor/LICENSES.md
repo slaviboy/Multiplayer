@@ -5,7 +5,7 @@ Do not edit these files by hand; bump the version in `package.json`, run `npm in
 
 | File | Package | License |
 |---|---|---|
-| `trystero-nostr.mjs` | [trystero](https://github.com/dmotz/trystero) 0.26.0 (Nostr strategy), bundled with `@trystero-p2p/core`, `@trystero-p2p/nostr` 0.26.0 and [`@noble/secp256k1`](https://github.com/paulmillr/noble-secp256k1) 3.2.0 | MIT, Copyright (c) 2021 Dan Motzenbecker; MIT, Copyright (c) Paul Miller |
+| `trystero-nostr.mjs` | [trystero](https://github.com/dmotz/trystero) 0.26.0 (Nostr strategy; its clock and subscription window are patched at build time so players with wrong device clocks still meet, see `scripts/vendor.mjs`), bundled with `@trystero-p2p/core`, `@trystero-p2p/nostr` 0.26.0 and [`@noble/secp256k1`](https://github.com/paulmillr/noble-secp256k1) 3.2.0 | MIT, Copyright (c) 2021 Dan Motzenbecker; MIT, Copyright (c) Paul Miller |
 | `qrcode.mjs` | [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 | MIT, Copyright (c) 2009 Kazuhiko Arase |
 
 The MIT license text: https://opensource.org/license/mit

@@ -15,8 +15,9 @@
 // fast announces on both sides. ICE candidates travel inside the offer/answer
 // (trickleIce: false) so a relay dropping or rate-limiting one of many small
 // candidate messages can't leave a peer without the other's public address.
-import { joinRoom } from '../vendor/trystero-nostr.mjs';
+import { joinRoom, setClockOffsetMs } from '../vendor/trystero-nostr.mjs';
 import { PROTOCOL_VERSION, createToken, isEnvelope, roomFor } from './protocol.js';
+import { measureClockOffset } from './server-time.js';
 
 const GUEST_CONNECT_TIMEOUT_MS = 45_000;
 const PING_EVERY_MS = 2_000;
@@ -71,6 +72,23 @@ const LoggedPeerConnection =
         }
       };
 
+// The relays compare timestamps, so stamp and filter signals by the site's clock
+// rather than this device's (see scripts/vendor.mjs). Asked once per page.
+let clockSync = null;
+function syncClock() {
+  if (!clockSync) {
+    clockSync = measureClockOffset().then((ms) => {
+      if (ms === null) {
+        log('server time unavailable, using this device clock');
+        return;
+      }
+      setClockOffsetMs(ms);
+      log(`device clock is ${Math.abs(ms / 1000).toFixed(1)}s ${ms > 0 ? 'behind' : 'ahead of'} the server`);
+    });
+  }
+  return clockSync;
+}
+
 export class PeerLink {
   /**
    * @param {object} o
@@ -103,7 +121,8 @@ export class PeerLink {
   }
 
   async start() {
-    this.roomId = await roomFor(this.appId, this.secret);
+    const [roomId] = await Promise.all([roomFor(this.appId, this.secret), syncClock()]);
+    this.roomId = roomId;
     await this.joinRoom();
     if (this.closed) return;
 

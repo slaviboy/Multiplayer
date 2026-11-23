@@ -212,3 +212,49 @@ test('host shares a link, guest joins as the other character, and play stays in 
     server.stop();
   }
 });
+
+// Nostr relays compare signal timestamps, so two devices whose clocks disagree
+// used to hear each other late or never. Both pages now take the site's clock.
+test('players whose device clocks disagree still connect quickly', { timeout: 120_000 }, async () => {
+  const server = await startServer();
+  const browser = await launchBrowser();
+  const skew = (offset) => {
+    const now = Date.now.bind(Date);
+    Date.now = () => now() + offset;
+  };
+  try {
+    const hostCtx = await browser.newContext();
+    const guestCtx = await browser.newContext();
+    await hostCtx.addInitScript(skew, -3 * 60 * 60 * 1000); // three hours behind
+    await guestCtx.addInitScript(skew, 5 * 60 * 1000); // five minutes fast
+
+    const host = await openPage(hostCtx, server.url + GAME);
+    await waitForState(host, 'menu');
+    assert.ok((await host.evaluate(() => Date.now())) < Date.now() - 2 * 60 * 60 * 1000, 'host clock is skewed');
+    await host.waitForFunction(() => {
+      const m = Phaser.GAMES[0].state.states.menu;
+      return m.templeHall && m.templeHall._olBtn;
+    });
+    await host.waitForTimeout(600);
+    const box = await host.evaluate(() => {
+      const b = Phaser.GAMES[0].state.states.menu.templeHall._olBtn.getBounds();
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    });
+    await host.mouse.click(box.x, box.y);
+    await host.locator('.ol-char').first().click();
+    const link = await host.locator('.ol-link').inputValue();
+
+    const guest = await openPage(guestCtx, link);
+    const t0 = Date.now();
+    await guest.waitForFunction(() => window.__online && window.__online.connected && window.__online.myMain, null, {
+      timeout: 30_000,
+    });
+    const took = Date.now() - t0;
+    assert.ok(took < 15_000, `connected in ${took} ms`);
+    assert.deepEqual(host.errors, [], 'no uncaught errors on host');
+    assert.deepEqual(guest.errors, [], 'no uncaught errors on guest');
+  } finally {
+    await browser.close();
+    server.stop();
+  }
+});
