@@ -15,7 +15,10 @@
 //              is scared (frozen and harmless) while that group is on
 //   fireflies  glowing dots that fly along a polyline to show the way; with a
 //              `group` they only appear while that group is on
-// All three are "receivers": they follow the group state like platforms do, so
+//   thorns     whoever lands on them goes back to their last checkpoint (or start)
+//   checkpoint a flag that becomes the respawn point of whoever touches it
+//   ladder     hold jump/up to climb; with a `group` it is rolled up until lowered
+// Torch, monster, fireflies and ladder are "receivers": they follow the group state like platforms do, so
 // online play syncs them through the host's world snapshot.
 
 const ART = {
@@ -24,6 +27,9 @@ const ART = {
   ext_glow: 'extras/art/glow.svg',
   ext_firefly: 'extras/art/firefly.svg',
   ext_monster: 'extras/art/monster.svg',
+  ext_thorns: 'extras/art/thorns.svg',
+  ext_ladder: 'extras/art/ladder.svg',
+  ext_checkpoint: 'extras/art/checkpoint.svg',
 };
 
 let GAME = null;
@@ -326,7 +332,199 @@ class Fireflies extends P.Group {
   }
 }
 
-return { Torch, Monster, Fireflies };
+// Thorns don't kill: whoever lands on them is sent back to their last checkpoint
+// (or their start), and the other player waits for them.
+class Thorns extends P.Group {
+  constructor(game, options) {
+    super(game);
+    options.properties = options.properties || {};
+    this.options = options;
+    this.signal = null;
+    this.state = 0;
+    this.rect = { x: options.x, y: options.y, w: options.width, h: options.height };
+    this.strip = game.make.tileSprite(this.rect.x, this.rect.y + this.rect.h - 28, this.rect.w, 28, 'ext_thorns');
+    game.layers.overGround.addChild(this.strip);
+    anchorBody(this, game, this.rect.x + this.rect.w / 2, this.rect.y + this.rect.h / 2);
+  }
+
+  update() {
+    const level = this.game && this.game.level;
+    if (!level || !level.loadCompleted || level.ended || this.game.physics.box2d.paused) return;
+    const bottom = this.rect.y + this.rect.h;
+    for (const ch of charsOf(level)) {
+      if (ch.dying || !ch.sprite || !ownsChar(ch)) continue;
+      const feet = ch.sprite.y + 34;
+      const inX = ch.sprite.x > this.rect.x - 6 && ch.sprite.x < this.rect.x + this.rect.w + 6;
+      if (inX && feet > bottom - 22 && feet < bottom + 14) respawn(ch);
+    }
+  }
+
+  _updateState() {}
+
+  updateState() {}
+
+  sounds() {
+    return [];
+  }
+
+  destroy(...args) {
+    [this.strip, this.anchorSprite].forEach((s) => s && s.destroy());
+    if (this.body) this.body.destroy();
+    return super.destroy(...args);
+  }
+}
+
+// A flag on the floor: touching it moves your respawn point here. It takes the
+// colour of whoever reached it (gold once both have).
+class Checkpoint extends P.Group {
+  constructor(game, options) {
+    super(game);
+    options.properties = options.properties || {};
+    this.options = options;
+    this.signal = null;
+    this.state = 0;
+    this.cx = options.x + (options.width || 32) / 2;
+    this.floorY = options.y + (options.height || 32);
+    this.flag = game.make.image(this.cx, this.floorY + 2, 'ext_checkpoint');
+    this.flag.anchor.set(0.2, 1);
+    this.flag.alpha = 0.85;
+    game.layers.underGround.addChild(this.flag);
+    anchorBody(this, game, this.cx, this.floorY - 32);
+    this.reached = {};
+  }
+
+  update() {
+    const level = this.game && this.game.level;
+    if (!level || !level.loadCompleted || !this.flag) return;
+    for (const ch of charsOf(level)) {
+      if (ch.dying || !ch.sprite) continue;
+      if (Math.abs(ch.sprite.x - this.cx) < 40 && Math.abs(ch.sprite.y - (this.floorY - 34)) < 50) {
+        ch._respawn = { x: this.cx, y: this.floorY - 34 };
+        const id = ch.data.char;
+        if (!this.reached[id]) {
+          this.reached[id] = true;
+          const both = this.reached.fb && this.reached.wg;
+          this.flag.tint = both ? 0xffd34d : id === 'fb' ? 0xff8a3d : id === 'wg' ? 0x4db8ff : 0xb6f23c;
+          this.flag.alpha = 1;
+        }
+      }
+    }
+  }
+
+  _updateState() {}
+
+  updateState() {}
+
+  sounds() {
+    return [];
+  }
+
+  destroy(...args) {
+    [this.flag, this.anchorSprite].forEach((s) => s && s.destroy());
+    if (this.body) this.body.destroy();
+    return super.destroy(...args);
+  }
+}
+
+// Hold jump/up to climb; let go to slide down slowly. With a group the ladder is
+// rolled up until a switch lowers it.
+class Ladder extends P.Group {
+  constructor(game, options) {
+    super(game);
+    receiverSetup(this, game, options);
+    this.rect = { x: options.x, y: options.y, w: options.width || 32, h: options.height || 64 };
+    this.tile = game.make.tileSprite(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 'ext_ladder');
+    game.layers.underGround.addChild(this.tile);
+    anchorBody(this, game, this.rect.x + this.rect.w / 2, this.rect.y + this.rect.h / 2);
+    this.frac = this.lowered ? 1 : 0;
+    this.draw();
+  }
+
+  get lowered() {
+    return this.hasGroup ? !!this.state : true;
+  }
+
+  draw() {
+    this.tile.height = Math.max(1, this.rect.h * this.frac);
+    this.tile.visible = this.frac > 0.02;
+  }
+
+  update() {
+    const game = this.game;
+    const level = game && game.level;
+    if (!level || !level.loadCompleted || !this.tile) return;
+    const target = this.lowered ? 1 : 0;
+    if (this.frac !== target) {
+      const step = Math.min(0.05, game.time.elapsed / 1000) * 2.5;
+      this.frac = target > this.frac ? Math.min(target, this.frac + step) : Math.max(target, this.frac - step);
+      this.draw();
+    }
+    if (game.physics.box2d.paused || level.ended) return;
+    const usable = this.lowered && this.frac > 0.98;
+    const cx = this.rect.x + this.rect.w / 2;
+    for (const ch of charsOf(level)) {
+      if (!ch.sprite || ch.dying || !ownsChar(ch)) continue;
+      const inside =
+        usable &&
+        Math.abs(ch.sprite.x - cx) < 22 &&
+        ch.sprite.y > this.rect.y - 60 &&
+        ch.sprite.y < this.rect.y + this.rect.h + 8;
+      if (!inside) {
+        if (ch._ladder === this) ch._ladder = null;
+        continue;
+      }
+      const up = ch.cursors && ch.cursors.up && ch.cursors.up.isDown;
+      if (up) {
+        ch.prohibitJump = true; // climbing, not jumping
+        ch.body.velocity.y = -150;
+        ch._ladder = this;
+      } else if (ch._ladder === this) {
+        ch.body.velocity.y = Math.min(ch.body.velocity.y, 70);
+      }
+    }
+  }
+
+  _updateState() {}
+
+  updateState() {}
+
+  sounds() {
+    return [];
+  }
+
+  destroy(...args) {
+    [this.tile, this.anchorSprite].forEach((s) => s && s.destroy());
+    if (this.body) this.body.destroy();
+    return super.destroy(...args);
+  }
+}
+
+return { Torch, Monster, Fireflies, Thorns, Checkpoint, Ladder };
+}
+
+/** Online play: only the browser that controls a character moves it (true when offline). */
+function ownsChar(ch) {
+  const online = window.__online;
+  return !online || typeof online.owns !== 'function' || online.owns(ch.data && ch.data.char);
+}
+
+function respawn(ch) {
+  const now = ch.game.time.now;
+  if (!ch._respawn || (ch._respawnedAt && now - ch._respawnedAt < 600)) return;
+  ch._respawnedAt = now;
+  ch.body.x = ch._respawn.x;
+  ch.body.y = ch._respawn.y;
+  ch.body.velocity.x = 0;
+  ch.body.velocity.y = 0;
+  ch.body.data.SetAwake(true); // a moved body that was asleep would hang in the air
+  if (ch.runForce) ch.currentRunForce = 0.475 * ch.runForce;
+  ch.sprite.alpha = 0.15;
+  ch.game.add.tween(ch.sprite).to({ alpha: 1 }, 600, 'Linear', true);
+  try {
+    ch.game.level.sounds.charToggle1.play();
+  } catch {
+    /* sound not loaded */
+  }
 }
 
 // ---------------------------------------------------------------- fog of war
@@ -397,6 +595,13 @@ function patchLevel(Level) {
     return orig.apply(this, args);
   });
 
+  // everyone respawns at their start until they reach a checkpoint
+  wrap(L, 'createCharObjects', function (orig, args) {
+    const result = orig.apply(this, args);
+    for (const ch of charsOf(this)) if (ch.sprite) ch._respawn = { x: ch.sprite.x, y: ch.sprite.y };
+    return result;
+  });
+
   wrap(L, 'preloadAudioFiles', function (orig, args) {
     const result = orig.apply(this, args);
     for (const [key, url] of Object.entries(ART)) {
@@ -444,6 +649,13 @@ function patchLevel(Level) {
 }
 
 function patchCharacters(Character, MainCharacter) {
+  // Engine bug fix: the running force is only initialised on a frame with no
+  // key held, so a key held through the level intro left the character stuck.
+  wrap(Character.prototype, 'update', function (orig, args) {
+    if (this.currentRunForce == null && this.runForce) this.currentRunForce = 0.475 * this.runForce;
+    return orig.apply(this, args);
+  });
+
   wrap(Character.prototype, 'drawDarkMask', function (orig, args) {
     const level = this.game && this.game.level;
     const radius = level && level._ext && +level._ext.lightRadius;
@@ -468,10 +680,13 @@ function init(game) {
   GAME = game;
   const req = window.require;
   const MechManager = req('States/Level/MechManager');
-  const { Torch, Monster, Fireflies } = makeDevices(window.Phaser);
+  const { Torch, Monster, Fireflies, Thorns, Checkpoint, Ladder } = makeDevices(window.Phaser);
   MechManager.classNames.torch = Torch;
   MechManager.classNames.monster = Monster;
   MechManager.classNames.fireflies = Fireflies;
+  MechManager.classNames.thorns = Thorns;
+  MechManager.classNames.checkpoint = Checkpoint;
+  MechManager.classNames.ladder = Ladder;
   patchLevel(req('States/Level/Level'));
   patchCharacters(req('States/Level/Characters/Character'), req('States/Level/Characters/MainCharacter'));
   window.__extras = { ready: true };

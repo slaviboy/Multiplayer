@@ -34,7 +34,8 @@ export const GROUND = {
 };
 // '7' and 'F' are ground; never use them as object markers.
 
-// Fixed markers placed automatically.
+// Fixed markers placed automatically ('^' thorns and 'k' checkpoints are handled
+// separately below).
 const FIXED = {
   S: { kind: 'stan' },
   W: { kind: 'lisa' },
@@ -174,11 +175,48 @@ export function buildLevel(src) {
     markers.delete(marker);
   }
 
+  // '^' thorns: each horizontal run becomes one strip (extras/extras.js)
+  const thorns = (markers.get('^') || []).slice().sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  markers.delete('^');
+  for (let i = 0; i < thorns.length; ) {
+    const [c0, r] = thorns[i];
+    let n = 1;
+    while (i + n < thorns.length && thorns[i + n][1] === r && thorns[i + n][0] === c0 + n) n++;
+    objects.push({ height: TILE, id: nextId++, name: '', rotation: 0, type: 'thorns', visible: true, width: n * TILE, x: c0 * TILE, y: r * TILE });
+    i += n;
+  }
+
+  // 'k' checkpoint flags, standing on the floor below the marker (extras/extras.js)
+  for (const [c, r] of markers.get('k') || []) {
+    objects.push({ height: TILE, id: nextId++, name: '', rotation: 0, type: 'checkpoint', visible: true, width: TILE, x: c * TILE, y: r * TILE });
+  }
+  markers.delete('k');
+
   const used = new Set();
   for (const obj of src.objects || []) {
     const { kind, at, rect, pos, ...props } = obj;
     if (at) used.add(at);
-    if (kind === 'platform') {
+    if (kind === 'ladder') {
+      // extras/extras.js: climbable column; every cell with the marker
+      const cells = markers.get(at);
+      if (!cells) fail(`marker '${at}' is not on the map`);
+      const cs = cells.map(([c]) => c);
+      const rs = cells.map(([, r]) => r);
+      const x0 = Math.min(...cs);
+      const y0 = Math.min(...rs);
+      objects.push({
+        height: (Math.max(...rs) - y0 + 1) * TILE,
+        id: nextId++,
+        name: '',
+        properties: properties({ group: props.group, initialState: props.initialState }),
+        rotation: 0,
+        type: 'ladder',
+        visible: true,
+        width: (Math.max(...cs) - x0 + 1) * TILE,
+        x: x0 * TILE,
+        y: y0 * TILE,
+      });
+    } else if (kind === 'platform') {
       let x0, y0, w, h;
       if (rect) {
         [x0, y0, w, h] = rect;

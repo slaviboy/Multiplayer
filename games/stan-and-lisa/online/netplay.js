@@ -1166,6 +1166,10 @@ function init(game) {
     get controlled() {
       return S.controlled;
     },
+    /** Whether this browser moves character `id` (always true offline). */
+    owns(id) {
+      return !liveSession() || !(id in S.owner) || S.owner[id] === S.role;
+    },
   };
 
   const invite = parseInvite(location.hash);
