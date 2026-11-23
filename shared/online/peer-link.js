@@ -23,6 +23,19 @@ const PING_EVERY_MS = 2_000;
 const MAX_RECEIVE_BYTES = 64 * 1024;
 const REJOIN_MIN_GAP_MS = 4_000;
 const BYE_GRACE_MS = 250;
+// Nostr relays for signalling. Trystero's default is 5 relays picked from a long
+// community list by app id, and one of ours (relay.bullishbounty.com) is dead.
+// These were checked to accept Trystero's events and answer within ~1.5 s; the
+// first four are the working ones from the old default, so a partner still
+// running a cached older page shares relays with us.
+const RELAYS = [
+  'wss://relay.grigic.org',
+  'wss://nostr.christiansass.de',
+  'wss://nostr.red5d.dev',
+  'wss://cdn.satellite.earth',
+  'wss://nos.lol',
+  'wss://relay.layer.systems',
+];
 
 // Trystero hands back the *same* room object while a room with that id is still
 // joined, so a new link must wait until the previous one has really left.
@@ -112,7 +125,14 @@ export class PeerLink {
     this.lastJoinAt = Date.now();
     log(`joining room as ${this.role}`);
     const room = joinRoom(
-      { appId: this.appId, password: this.secret, maxReceiveBytes: MAX_RECEIVE_BYTES, trickleIce: false, rtcPolyfill: LoggedPeerConnection },
+      {
+        appId: this.appId,
+        password: this.secret,
+        maxReceiveBytes: MAX_RECEIVE_BYTES,
+        trickleIce: false,
+        rtcPolyfill: LoggedPeerConnection,
+        relayConfig: { urls: RELAYS },
+      },
       roomId,
       { onJoinError: (details) => this.onJoinError(room, details) },
     );
