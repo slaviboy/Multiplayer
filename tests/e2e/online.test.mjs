@@ -131,6 +131,17 @@ test('host shares a link, guest joins as the other character, and play stays in 
     assert.ok(Math.abs(bubbleX - lisaScreenX) < 80, `bubble sits above Lisa (${bubbleX} vs ${lisaScreenX})`);
     await guest.locator('.ol-chat .ol-chat-btn', { hasText: '✕' }).click();
 
+    // --- tapping a buddy takes it; tapping your own character takes control back
+    const buddy = await host.evaluate(() => {
+      const f = Phaser.GAMES[0].level.friends[0];
+      return f && f.data.char;
+    });
+    assert.ok(buddy, 'the level has a buddy');
+    await host.evaluate(() => Phaser.GAMES[0].level.friends[0].onTouched());
+    assert.equal(await host.evaluate(() => window.__online.controlled), buddy);
+    await host.evaluate(() => Phaser.GAMES[0].level.pers1.onTouched());
+    assert.equal(await host.evaluate(() => window.__online.controlled), 'fb', 'tap on Stan selects Stan again');
+
     // --- pause is shared
     await host.evaluate(() => void Phaser.GAMES[0].level.togglePause());
     await guest.waitForFunction(() => Phaser.GAMES[0].paused === true, null, { timeout: 5000 });

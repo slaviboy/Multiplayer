@@ -1008,6 +1008,21 @@ function patchCharacter(Character) {
     return orig.apply(this, args);
   });
 
+  // Tapping a character. The bundle skips selecting Stan or Lisa while their
+  // controls are enabled, and online they always are (netplay steers them), so
+  // tapping your own character after a buddy showed the arrow but left the buddy
+  // under your control. Online, a tap on your character or a buddy always selects it.
+  wrap(C, 'onTouched', function (orig, args) {
+    const lvl = this.game && this.game.level;
+    if (!lvl || !lvl._net || !S.link) return orig.apply(this, args);
+    const id = this.data && this.data.char;
+    if (id !== S.myMain && !FRIENDS.includes(id)) return 'skipped'; // the partner's character
+    lvl.touchedFriends[id] = true;
+    if (this.game.settings.vibrate && navigator.vibrate) navigator.vibrate(10);
+    this.onSelect(args[0]);
+    return null;
+  });
+
   wrap(C, 'onSelect', function (orig, args) {
     const lvl = this.game && this.game.level;
     if (!lvl || !lvl._net || !S.link) return orig.apply(this, args);
