@@ -24,7 +24,7 @@ node scripts/check.mjs || {
   echo "pre-commit: checks failed; run: npm run check" >&2
   exit 1
 }
-node --test tests/unit/ >/dev/null 2>&1 || {
+node --test tests/unit/*.test.mjs >/dev/null 2>&1 || {
   echo "pre-commit: unit tests failed; run: npm test" >&2
   exit 1
 }

@@ -9,8 +9,8 @@
     "vendor": "node scripts/vendor.mjs",
     "levels": "node scripts/build-levels.mjs",
     "check": "node scripts/check.mjs",
-    "test": "node --test tests/unit/",
-    "test:e2e": "node --test --test-concurrency=1 tests/e2e/",
+    "test": "node --test tests/unit/*.test.mjs",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/*.test.mjs",
     "serve": "node scripts/serve.mjs",
     "build": "node scripts/build-site.mjs"
   },
