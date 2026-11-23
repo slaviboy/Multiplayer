@@ -1,0 +1,23 @@
+{
+  "name": "multiplayer-games",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A collection of browser games, deployed as a static GitHub Pages site.",
+  "type": "module",
+  "scripts": {
+    "prepare": "node scripts/setup-hooks.mjs",
+    "vendor": "node scripts/vendor.mjs",
+    "levels": "node scripts/build-levels.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/unit/",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/",
+    "serve": "node scripts/serve.mjs",
+    "build": "node scripts/build-site.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright-core": "1.65.1",
+    "qrcode-generator": "2.0.4",
+    "trystero": "0.26.0"
+  }
+}
