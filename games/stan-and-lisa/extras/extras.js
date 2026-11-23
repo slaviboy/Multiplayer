@@ -703,10 +703,118 @@ function patchKeyboard(game) {
   document.addEventListener('visibilitychange', () => document.hidden && release());
 }
 
+// Touch controls. The bundle's "single" mode has two buttons, left and right in
+// the bottom corners, and pressing both jumps. By default it now also gets a jump
+// button in the middle; Settings has a button that switches back to the two
+// buttons (settings.jumpButton = false, saved with the game's other settings).
+const BUTTON_LABELS = {
+  en: ['3 buttons', '2 buttons'],
+  es: ['3 botones', '2 botones'],
+  fr: ['3 boutons', '2 boutons'],
+  it: ['3 pulsanti', '2 pulsanti'],
+  nl: ['3 knoppen', '2 knoppen'],
+  ru: ['3 кнопки', '2 кнопки'],
+  de: ['3 Tasten', '2 Tasten'],
+};
+
+const jumpButtonOn = (game) => !!game.settings && game.settings.jumpButton !== false;
+
+function addJumpButton(cursors, TouchButton) {
+  const group = cursors.buttons;
+  const [left, right] = group.children;
+  if (!left || !right) return;
+  const jump = new TouchButton(cursors.game, 0, 0, 'up', cursors.id);
+  let jumpDown = false;
+  let bothDown = false; // pressing left and right together still jumps, as the tutorial says
+  cursors.up = {
+    visible: false,
+    get isDown() {
+      return jumpDown || bothDown;
+    },
+    set isDown(v) {
+      bothDown = !!v;
+    },
+  };
+  // The two-button mode turns the other button into a jump icon while one is held;
+  // with a jump button of its own that hint would only confuse.
+  left.setState = () => {};
+  right.setState = () => {};
+  const update = () => {
+    cursors.active = !!group.visible && (cursors.up.isDown || cursors.left.isDown || cursors.right.isDown);
+  };
+  jump.onDown = () => {
+    jumpDown = true;
+    update();
+  };
+  jump.onUp = () => {
+    jumpDown = false;
+    update();
+  };
+  group.addChild(jump);
+  const layout = cursors.layoutContent;
+  cursors.layoutContent = function (...args) {
+    const result = layout && layout.apply(this, args);
+    jump.scale.set(left.scale.x, left.scale.y);
+    jump.x = 0;
+    jump.y = left.y;
+    return result;
+  };
+  cursors.layoutContent();
+  cursors.jumpButton = jump;
+}
+
+function patchTouchControls(game, req) {
+  const TouchButton = req('States/Common/TouchButton');
+  wrap(req('States/Level/CharCursors').prototype, 'setup', function (orig, args) {
+    const result = orig.apply(this, args);
+    if (this.game.settings.controls === 'single' && jumpButtonOn(this.game)) addJumpButton(this, TouchButton);
+    return result;
+  });
+
+  for (const lang of Object.keys(game.lang.dicts)) {
+    const [three, two] = BUTTON_LABELS[lang] || BUTTON_LABELS.en;
+    game.lang.dicts[lang].ext_buttons3 = three;
+    game.lang.dicts[lang].ext_buttons2 = two;
+  }
+  const StoneButton = req('States/Common/StoneButton');
+  const Settings = req('States/Settings/SettingsMenu').prototype;
+  wrap(Settings, 'renderContent', function (orig, args) {
+    const result = orig.apply(this, args);
+    if (this.single && this.dual) {
+      const toggle = () => {
+        this.game.settings.jumpButton = !jumpButtonOn(this.game);
+        this.game.saveSettings();
+        this.game.settingsSignal.dispatch('controls'); // rebuilds the touch buttons
+        this.setState();
+      };
+      // Left of "1 Player", the mode it belongs to (it hides in 2 Player mode);
+      // the row below holds the sound buttons.
+      const b = new StoneButton(this.game, this.single.x - 200, this.single.y, '', toggle);
+      b.scale.set(0.8);
+      b.label.fontSize = 20;
+      b.toggle = toggle; // for tests
+      this.jumpToggle = b;
+      this.board.addChild(b);
+      this.setState();
+    }
+    return result;
+  });
+  wrap(Settings, 'setState', function (orig, args) {
+    const result = orig.apply(this, args);
+    const b = this.jumpToggle;
+    if (b) {
+      b.visible = this.game.settings.controls === 'single';
+      b.label.text = this.game.lang.locale(jumpButtonOn(this.game) ? 'ext_buttons3' : 'ext_buttons2');
+    }
+    return result;
+  });
+}
+
 function init(game) {
   GAME = game;
   const req = window.require;
   patchKeyboard(game);
+  patchTouchControls(game, req);
   const MechManager = req('States/Level/MechManager');
   const { Torch, Monster, Fireflies, Thorns, Checkpoint, Ladder } = makeDevices(window.Phaser);
   MechManager.classNames.torch = Torch;
@@ -724,7 +832,7 @@ function init(game) {
   const P = window.Phaser;
   const g = P && P.GAMES && P.GAMES[0];
   const req = window.require;
-  if (g && g.state && typeof req === 'function' && req.defined && req.defined('States/Level/Level') && window.box2d) {
+  if (g && g.state && g.lang && typeof req === 'function' && req.defined && req.defined('States/Level/Level') && window.box2d) {
     init(g);
   } else {
     setTimeout(waitForGame, 30);
