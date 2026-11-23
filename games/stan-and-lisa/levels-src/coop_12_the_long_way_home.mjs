@@ -34,8 +34,8 @@ g.put(21, 23, 'r').put(26, 22, 'b').put(31, 23, 'r');
 g.put(39, 26, '4').put(58, 26, '5');
 g.put(45, 25, 'b').put(50, 25, 'r').put(55, 25, 'b');
 // D: the piggyback wall, its ladder and lever
-g.box(66, 22, 71, 26).box(65, 22, 65, 26, 'H').put(69, 21, '6').put(62, 26, 'k');
-g.put(68, 18, 'v').put(73, 25, 'r');
+g.box(66, 22, 73, 26).box(65, 22, 65, 26, 'H').put(71, 21, '6').put(62, 26, 'k'); // lever well past the landing spot
+g.put(68, 18, 'v').put(74, 25, 'r');
 // lights
 g.put(46, 22, 'U').put(54, 22, 'U').put(26, 19, 't').put(6, 11, 'x').put(74, 22, 't');
 
@@ -130,7 +130,7 @@ export default {
       { wait: 'base' },
       { jump: 'up' },
       { jump: 'right', to: 66.6 },
-      { go: 71 },
+      { go: 73.2 },
       { set: 'ladder6' },
       { go: 76.5 },
       { climb: 'up', untilAbove: 14 },
