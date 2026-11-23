@@ -1,0 +1,361 @@
+/* Online-play overlay. Sits above the game canvas and its full-window input layer. */
+.ol-root {
+  --ol-bg: rgba(14, 16, 12, 0.72);
+  --ol-card: #1d211a;
+  --ol-card-edge: #4a5240;
+  --ol-text: #f3efe2;
+  --ol-muted: #b9b3a1;
+  --ol-gold: #f2c94c;
+  --ol-gold-ink: #2a2108;
+  --ol-ok: #6fd36f;
+  --ol-warn: #f2a33a;
+  --ol-bad: #ef6b5b;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ol-text);
+}
+
+.ol-root *,
+.ol-root *::before,
+.ol-root *::after {
+  box-sizing: border-box;
+}
+
+.ol-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--ol-bg);
+  backdrop-filter: blur(2px);
+  overflow-y: auto;
+}
+
+.ol-card {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--ol-card);
+  border: 2px solid var(--ol-card-edge);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  text-align: center;
+}
+
+.ol-title {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ol-gold);
+}
+
+.ol-sub {
+  margin: 0 0 18px;
+  color: var(--ol-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.ol-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.ol-btn {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 2px solid var(--ol-card-edge);
+  background: transparent;
+  color: var(--ol-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ol-btn:hover {
+  border-color: var(--ol-gold);
+}
+
+.ol-btn:focus-visible,
+.ol-char:focus-visible,
+.ol-hud-btn:focus-visible,
+.ol-link:focus-visible {
+  outline: 3px solid var(--ol-gold);
+  outline-offset: 2px;
+}
+
+.ol-btn-primary {
+  background: var(--ol-gold);
+  border-color: var(--ol-gold);
+  color: var(--ol-gold-ink);
+}
+
+.ol-btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+/* character choice */
+.ol-chars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.ol-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px;
+  border-radius: 14px;
+  border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--ol-card));
+  color: var(--ol-text);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.ol-char:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.ol-char-icon {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.ol-char-icon.ol-big {
+  width: 96px;
+  height: 96px;
+  margin-top: 8px;
+}
+
+.ol-char-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ol-char-hint {
+  font-size: 13px;
+  color: var(--ol-muted);
+}
+
+/* invite */
+.ol-invite {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  align-items: center;
+  text-align: left;
+}
+
+.ol-qr {
+  width: 200px;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.ol-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ol-invite-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ol-link {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid var(--ol-card-edge);
+  background: #10130e;
+  color: var(--ol-text);
+  font: 13px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.ol-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 4px 0 0;
+  color: var(--ol-muted);
+  font-size: 15px;
+}
+
+.ol-invite .ol-status {
+  justify-content: flex-start;
+}
+
+.ol-spinner {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--ol-gold) 30%, transparent);
+  border-top-color: var(--ol-gold);
+  animation: ol-spin 0.9s linear infinite;
+}
+
+@keyframes ol-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* HUD */
+.ol-hud {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  background: rgba(14, 16, 12, 0.78);
+  border: 1px solid var(--ol-card-edge);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ol-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ol-ok);
+}
+
+.ol-hud[data-state='slow'] .ol-dot {
+  background: var(--ol-warn);
+}
+
+.ol-hud[data-state='away'] .ol-dot {
+  background: var(--ol-bad);
+}
+
+.ol-hud-ping {
+  color: var(--ol-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ol-hud-me {
+  font-weight: 700;
+  color: var(--accent, var(--ol-gold));
+}
+
+.ol-hud-btn {
+  min-height: 30px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--ol-card-edge);
+  background: transparent;
+  color: var(--ol-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ol-hud-btn:hover {
+  border-color: var(--ol-gold);
+}
+
+.ol-hud-switch {
+  border-color: var(--ol-gold);
+  color: var(--ol-gold);
+}
+
+/* banner + toast */
+.ol-banner,
+.ol-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 950;
+  max-width: calc(100vw - 32px);
+  padding: 10px 18px;
+  border-radius: 12px;
+  background: rgba(14, 16, 12, 0.85);
+  border: 1px solid var(--ol-gold);
+  color: var(--ol-text);
+  font-size: 15px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ol-banner {
+  bottom: 18px;
+}
+
+.ol-toast {
+  top: 56px;
+  transition: opacity 0.4s ease;
+}
+
+.ol-toast-out {
+  opacity: 0;
+}
+
+@media (max-width: 560px) {
+  .ol-card {
+    padding: 18px 16px;
+  }
+
+  .ol-invite {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .ol-qr {
+    width: min(220px, 70vw);
+  }
+
+  .ol-invite .ol-status {
+    justify-content: center;
+  }
+
+  .ol-hud-label {
+    display: none;
+  }
+}
+
+@media (max-height: 480px) {
+  .ol-qr {
+    width: 150px;
+  }
+
+  .ol-invite {
+    grid-template-columns: 150px 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ol-spinner {
+    animation-duration: 2.5s;
+  }
+
+  .ol-char {
+    transition: none;
+  }
+}
