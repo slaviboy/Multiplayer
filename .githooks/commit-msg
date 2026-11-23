@@ -1,0 +1,9 @@
+#!/usr/bin/env node
+// Removes "Co-Authored-By:" trailers from commit messages (same rule as in
+// slaviboy/Grandmaster-3D). Delete this hook to keep them.
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const file = process.argv[2];
+const message = readFileSync(file, 'utf8');
+const cleaned = `${message.replace(/^co-authored-by:.*(?:\r?\n|$)/gim, '').trimEnd()}\n`;
+if (cleaned !== message) writeFileSync(file, cleaned);

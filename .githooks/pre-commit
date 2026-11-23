@@ -1,0 +1,30 @@
+#!/bin/sh
+# Runs before every commit (enabled by `npm install`, or once by hand:
+#   git config core.hooksPath .githooks).
+
+# 1. Commits must be authored by the repository owner. The expected author is
+#    kept in local git config (hooks.author), so no e-mail lives in the repo;
+#    npm install records it from user.name/user.email the first time.
+expected=$(git config --get hooks.author)
+if [ -n "$expected" ]; then
+  actual=$(git var GIT_AUTHOR_IDENT | sed -E 's/ [0-9]+ [-+][0-9]+$//')
+  if [ "$actual" != "$expected" ]; then
+    echo "pre-commit: commits must be authored by $expected (got $actual)." >&2
+    echo "  Fix the author, or update the expectation: git config hooks.author \"Name <email>\"" >&2
+    exit 1
+  fi
+fi
+
+# 2. Repository checks and unit tests.
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: Node.js is needed for the checks (https://nodejs.org)." >&2
+  exit 1
+fi
+node scripts/check.mjs || {
+  echo "pre-commit: checks failed; run: npm run check" >&2
+  exit 1
+}
+node --test tests/unit/ >/dev/null 2>&1 || {
+  echo "pre-commit: unit tests failed; run: npm test" >&2
+  exit 1
+}
