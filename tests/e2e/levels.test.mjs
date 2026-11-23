@@ -5,7 +5,7 @@
 // Run a single level with: LEVEL=coop_03 npm run test:e2e
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { launchBrowser, openPage, startServer, waitForPlayableLevel, waitForState } from './helpers.mjs';
 import { playLevel } from './bot.mjs';
 import { loadSources } from '../../scripts/build-levels.mjs';
@@ -54,6 +54,10 @@ test('every co-op level can be finished (bot walkthrough)', { timeout: 3_600_000
   const failures = [];
   await withGame(async (page) => {
     for (const { def } of sources) {
+      if (!existsSync(`${GAME}data/friends/levels/${def.file}`)) {
+        failures.push(`${def.file}: not built (run npm run levels)`);
+        continue;
+      }
       if (!def.walkthrough) {
         failures.push(`${def.file}: no walkthrough`);
         continue;

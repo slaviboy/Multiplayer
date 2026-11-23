@@ -478,6 +478,9 @@ class Ladder extends P.Group {
         ch.prohibitJump = true; // climbing, not jumping
         ch.body.velocity.y = -150;
         ch._ladder = this;
+        // keep a climber centred so they fit through 1-tile holes, unless they steer
+        const steer = ch.cursors.left.isDown || ch.cursors.right.isDown;
+        if (!steer) ch.body.velocity.x = Math.max(-140, Math.min(140, (cx - ch.sprite.x) * 8));
       } else if (ch._ladder === this) {
         ch.body.velocity.y = Math.min(ch.body.velocity.y, 70);
       }
