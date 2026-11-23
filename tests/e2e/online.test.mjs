@@ -112,6 +112,25 @@ test('host shares a link, guest joins as the other character, and play stays in 
       assert.ok(Math.hypot(gp.x - hp.x, gp.y - hp.y) < 0.6, `world body in sync (${JSON.stringify({ gp, hp })})`);
     }
 
+    // --- chat: an emoji and a typed message show up above the sender on the other screen
+    await guest.locator('.ol-hud-chat').click();
+    await guest.locator('.ol-chat .ol-chat-btn').first().click(); // emoji picker
+    await guest.locator('.ol-emoji', { hasText: '❤️' }).click();
+    await host.locator('.ol-bubble', { hasText: '❤️' }).waitFor({ timeout: 10000 });
+    await guest.waitForTimeout(400);
+    await guest.locator('.ol-chat-input').fill('wait for me <b>here</b>');
+    await guest.locator('.ol-chat-input').press('Enter');
+    const bubble = host.locator('.ol-bubble', { hasText: 'wait for me' });
+    await bubble.waitFor({ timeout: 10000 });
+    assert.equal(await bubble.evaluate((n) => n.children.length), 0, 'chat text is not parsed as HTML');
+    const lisaScreenX = await host.evaluate(() => {
+      const b = Phaser.GAMES[0].level.pers2.sprite.getBounds();
+      return b.x + b.width / 2;
+    });
+    const bubbleX = await bubble.evaluate((n) => n.getBoundingClientRect().left + n.getBoundingClientRect().width / 2);
+    assert.ok(Math.abs(bubbleX - lisaScreenX) < 80, `bubble sits above Lisa (${bubbleX} vs ${lisaScreenX})`);
+    await guest.locator('.ol-chat .ol-chat-btn', { hasText: '✕' }).click();
+
     // --- pause is shared
     await host.evaluate(() => void Phaser.GAMES[0].level.togglePause());
     await guest.waitForFunction(() => Phaser.GAMES[0].paused === true, null, { timeout: 5000 });

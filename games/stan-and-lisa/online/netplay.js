@@ -18,6 +18,7 @@
 import { createInvite, inviteUrl, parseInvite, isBool, isFiniteNumber, isInt } from '../../../shared/online/protocol.js';
 import { PeerLink } from '../../../shared/online/peer-link.js';
 import { Lobby, translate } from '../../../shared/online/lobby.js';
+import { Chat } from '../../../shared/online/chat.js';
 
 const APP_ID = 'stan-and-lisa';
 const SESSION_KEY = 'stan-and-lisa:online';
@@ -38,6 +39,7 @@ const ZERO = Object.freeze({ l: false, r: false, u: false });
 
 const HOST_ONLY = new Set(['setup', 'level', 'go', 'w', 'end', 'own']);
 const GUEST_ONLY = new Set(['ready', 'take', 'retry']);
+const CHAR_NAMES = { fb: 'Stan', wg: 'Lisa', fat: 'Fat', small: 'Small', jump: 'Jump' };
 
 const HINTS = {
   en: { fb: 'Fire: walks through lava, but water is deadly.', wg: 'Water: walks through water, but lava is deadly.' },
@@ -246,6 +248,10 @@ function endSession() {
   S.lobby.close();
   S.lobby.hideHud();
   S.lobby.banner(null);
+  if (S.chat) {
+    S.chat.clear();
+    S.chat.setEnabled(false);
+  }
   if (S.game) S.game.gameConfig.canRevive = S.origCanRevive;
 }
 
@@ -289,7 +295,8 @@ function onStatus(status, info = {}) {
 function partnerReady(reconnect) {
   S.lobby.characters = characterList();
   S.lobby.showConnected(S.myMain);
-  S.lobby.showHud({ myCharId: S.myMain, onLeave: leaveOnline, onSwitch: () => cycleControl() });
+  S.lobby.showHud({ myCharId: S.myMain, onLeave: leaveOnline, onSwitch: () => cycleControl(), onChat: () => S.chat.toggle() });
+  S.chat.setEnabled(true);
   updateHud();
   updateBanner();
   if (S.role !== 'host') return;
@@ -322,7 +329,7 @@ function updateHud() {
 
 function updateBanner() {
   const cur = S.game && S.game.state.current;
-  const waiting = liveSession() && S.role === 'guest' && (cur === 'menu' || cur === 'levelMenu');
+  const waiting = liveSession() && S.role === 'guest' && ['menu', 'levelMenu', 'tutorialPrompt'].includes(cur);
   S.lobby.banner(waiting ? t('friend_choosing') : null);
   if (cur !== 'level') S.lobby.setSwitchVisible(false);
 }
@@ -346,6 +353,8 @@ function valid(m) {
       return isSeq(m.s);
     case 'menu':
       return true;
+    case 'say':
+      return typeof m.text === 'string' && m.text.length > 0 && m.text.length <= 200;
     case 'pause':
       return isSeq(m.s) && isBool(m.on);
     case 'end':
@@ -503,6 +512,14 @@ function onMessage(m) {
     case 'w':
       if (sameLevel(m.s)) S.world = m;
       break;
+    case 'say': {
+      const now = performance.now();
+      S.chatTimes = (S.chatTimes || []).filter((t0) => now - t0 < 3000);
+      if (S.chatTimes.length >= 6) return; // flood guard
+      S.chatTimes.push(now);
+      S.chat.show(S.otherControlled || S.otherMain, m.text);
+      break;
+    }
   }
 }
 
@@ -1056,6 +1073,18 @@ function patchFade(game) {
   };
 }
 
+/** Screen point just above a character's head, or null outside an online level. */
+function bubbleAnchor(id) {
+  const lvl = onlineLevel();
+  const ch = lvl && id && charById(lvl, id);
+  if (!ch || !ch.sprite || ch.isDead || !ch.sprite.worldVisible) return null;
+  const b = ch.sprite.getBounds();
+  const canvas = S.game.canvas.getBoundingClientRect();
+  const x = Math.max(60, Math.min(window.innerWidth - 60, canvas.left + b.x + b.width / 2));
+  const y = Math.max(70, Math.min(window.innerHeight - 10, canvas.top + b.y));
+  return { x, y };
+}
+
 // ---------------------------------------------------------------- menu button
 
 function addOnlineButton(hall) {
@@ -1135,6 +1164,16 @@ function init(game) {
   };
   S.origCanRevive = game.gameConfig ? !!game.gameConfig.canRevive : true;
   S.lobby = new Lobby({ getLang, characters: characterList() });
+  S.chat = new Chat({
+    root: S.lobby.root,
+    t,
+    onSend: (text) => {
+      if (!send({ t: 'say', text })) return;
+      S.chat.show(S.controlled || S.myMain, text);
+    },
+    anchorFor: bubbleAnchor,
+    nameOf: (id) => CHAR_NAMES[id] || '',
+  });
 
   injectStrings(game);
   patchLevel(S.mods.Level);

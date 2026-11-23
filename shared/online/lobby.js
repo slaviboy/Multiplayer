@@ -35,6 +35,10 @@ const STRINGS = {
     friend_choosing: 'Your friend is choosing a level…',
     you_are: 'You are {name}',
     switch: 'Switch',
+    chat: 'Chat',
+    say_something: 'Say something…',
+    send: 'Send',
+    emoji: 'Emoji',
   },
   es: {
     play_online: 'Jugar en línea',
@@ -67,6 +71,10 @@ const STRINGS = {
     friend_choosing: 'Tu amigo está eligiendo un nivel…',
     you_are: 'Eres {name}',
     switch: 'Cambiar',
+    chat: 'Chat',
+    say_something: 'Escribe algo…',
+    send: 'Enviar',
+    emoji: 'Emoji',
   },
   fr: {
     play_online: 'Jouer en ligne',
@@ -99,6 +107,10 @@ const STRINGS = {
     friend_choosing: 'Ton ami choisit un niveau…',
     you_are: 'Tu es {name}',
     switch: 'Changer',
+    chat: 'Chat',
+    say_something: 'Écris quelque chose…',
+    send: 'Envoyer',
+    emoji: 'Émoji',
   },
   it: {
     play_online: 'Gioca online',
@@ -131,6 +143,10 @@ const STRINGS = {
     friend_choosing: 'Il tuo amico sta scegliendo un livello…',
     you_are: 'Sei {name}',
     switch: 'Cambia',
+    chat: 'Chat',
+    say_something: 'Scrivi qualcosa…',
+    send: 'Invia',
+    emoji: 'Emoji',
   },
   nl: {
     play_online: 'Online spelen',
@@ -163,6 +179,10 @@ const STRINGS = {
     friend_choosing: 'Je vriend kiest een level…',
     you_are: 'Jij bent {name}',
     switch: 'Wisselen',
+    chat: 'Chat',
+    say_something: 'Zeg iets…',
+    send: 'Versturen',
+    emoji: 'Emoji',
   },
   ru: {
     play_online: 'Играть онлайн',
@@ -195,6 +215,10 @@ const STRINGS = {
     friend_choosing: 'Друг выбирает уровень…',
     you_are: 'Вы — {name}',
     switch: 'Сменить',
+    chat: 'Чат',
+    say_something: 'Напишите что-нибудь…',
+    send: 'Отправить',
+    emoji: 'Эмодзи',
   },
   de: {
     play_online: 'Online spielen',
@@ -227,6 +251,10 @@ const STRINGS = {
     friend_choosing: 'Dein Freund wählt ein Level…',
     you_are: 'Du bist {name}',
     switch: 'Wechseln',
+    chat: 'Chat',
+    say_something: 'Schreib etwas…',
+    send: 'Senden',
+    emoji: 'Emoji',
   },
 };
 
@@ -425,7 +453,7 @@ export class Lobby {
   // ---------- in-game chrome ----------
 
   /** Small pill: "● Online · 42 ms   You are Lisa   [Leave]". */
-  showHud({ myCharId, onLeave, onSwitch }) {
+  showHud({ myCharId, onLeave, onSwitch, onChat }) {
     this.hideHud();
     const me = this.charById(myCharId);
     this.hudPing = el('span', { class: 'ol-hud-ping' });
@@ -443,6 +471,9 @@ export class Lobby {
       this.hudPing,
       me ? el('span', { class: 'ol-hud-me', text: me.name }) : null,
       this.switchBtn,
+      onChat
+        ? el('button', { class: 'ol-hud-btn ol-hud-chat', type: 'button', text: '💬', title: this.t('chat'), 'aria-label': this.t('chat'), onclick: onChat })
+        : null,
       el('button', { class: 'ol-hud-btn', type: 'button', text: this.t('leave'), onclick: onLeave }),
     ]);
     this.root.append(this.hud);

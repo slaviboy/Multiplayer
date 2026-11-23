@@ -359,3 +359,146 @@
     transition: none;
   }
 }
+
+/* chat */
+.ol-chat {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 960;
+  width: min(520px, calc(100vw - 32px));
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(14, 16, 12, 0.92);
+  border: 1px solid var(--ol-card-edge);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.ol-chat-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ol-chat-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 2px solid var(--ol-card-edge);
+  background: #10130e;
+  color: var(--ol-text);
+  font: 15px/1.3 inherit;
+}
+
+.ol-chat-input:focus-visible {
+  outline: 3px solid var(--ol-gold);
+  outline-offset: 1px;
+}
+
+.ol-chat-btn,
+.ol-chat-send {
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 2px solid var(--ol-card-edge);
+  background: transparent;
+  color: var(--ol-text);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.ol-chat-send {
+  padding: 0 14px;
+  border-color: var(--ol-gold);
+  background: var(--ol-gold);
+  color: var(--ol-gold-ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ol-chat-btn:hover,
+.ol-emoji:hover {
+  border-color: var(--ol-gold);
+}
+
+.ol-chat-btn:focus-visible,
+.ol-chat-send:focus-visible,
+.ol-emoji:focus-visible {
+  outline: 3px solid var(--ol-gold);
+  outline-offset: 2px;
+}
+
+.ol-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 4px;
+  margin-bottom: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.ol-emoji-grid[hidden] {
+  display: none;
+}
+
+.ol-emoji {
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.ol-hud-chat {
+  font-size: 15px;
+}
+
+/* speech bubbles above characters */
+.ol-bubble {
+  position: fixed;
+  z-index: 940;
+  max-width: min(260px, 60vw);
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: #fffdf5;
+  color: #1d1a12;
+  border: 2px solid #1d1a12;
+  font: 600 15px/1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  text-align: center;
+  overflow-wrap: anywhere;
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.ol-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 14px;
+  height: 14px;
+  background: #fffdf5;
+  border-right: 2px solid #1d1a12;
+  border-bottom: 2px solid #1d1a12;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.ol-bubble-emoji {
+  font-size: 30px;
+  line-height: 1.1;
+  padding: 4px 10px;
+}
+
+.ol-bubble-out {
+  opacity: 0;
+}
+
+.ol-chat-notice strong {
+  color: var(--ol-gold);
+}
