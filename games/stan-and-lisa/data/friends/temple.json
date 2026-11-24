@@ -788,6 +788,104 @@
    "unlock_key": "free",
    "diff": 5.4,
    "quality": 4
+  },
+  {
+   "id": 69,
+   "shownId": 56,
+   "_id": 61,
+   "x": 0.42,
+   "y": 0.93,
+   "filename": "friends/levels/coop_13_spring_meadow.json",
+   "required": 0,
+   "unlock_key": "free",
+   "quality": 5,
+   "time": 160,
+   "mobileTime": 200,
+   "diff": 8
+  },
+  {
+   "id": 70,
+   "shownId": 57,
+   "_id": 62,
+   "x": 0.36,
+   "y": 0.93,
+   "filename": "friends/levels/coop_14_sun_baked_dunes.json",
+   "required": 0,
+   "unlock_key": "free",
+   "quality": 5,
+   "time": 210,
+   "mobileTime": 260,
+   "diff": 8.5
+  },
+  {
+   "id": 71,
+   "shownId": 58,
+   "_id": 63,
+   "x": 0.3,
+   "y": 0.93,
+   "filename": "friends/levels/coop_15_across_the_lake.json",
+   "required": 0,
+   "unlock_key": "free",
+   "quality": 5,
+   "time": 250,
+   "mobileTime": 310,
+   "diff": 9
+  },
+  {
+   "id": 72,
+   "shownId": 59,
+   "_id": 64,
+   "x": 0.24,
+   "y": 0.93,
+   "filename": "friends/levels/coop_16_through_the_rain.json",
+   "required": 0,
+   "unlock_key": "free",
+   "quality": 5,
+   "time": 260,
+   "mobileTime": 330,
+   "diff": 9.5
+  },
+  {
+   "id": 73,
+   "shownId": 60,
+   "_id": 65,
+   "x": 0.18,
+   "y": 0.93,
+   "filename": "friends/levels/coop_17_snowdrift_pass.json",
+   "required": 0,
+   "unlock_key": "free",
+   "quality": 5,
+   "time": 250,
+   "mobileTime": 310,
+   "diff": 10
+  },
+  {
+   "id": 74,
+   "shownId": 61,
+   "_id": 66,
+   "x": 0.12,
+   "y": 0.93,
+   "filename": "friends/levels/coop_18_frozen_night.json",
+   "required": 0,
+   "unlock_key": "free",
+   "quality": 5,
+   "time": 270,
+   "mobileTime": 340,
+   "diff": 10.5
+  },
+  {
+   "id": 75,
+   "shownId": 62,
+   "_id": 67,
+   "x": 0.06,
+   "y": 0.93,
+   "filename": "friends/levels/coop_19_eye_of_the_storm.json",
+   "required": 0,
+   "unlock_key": "free",
+   "quality": 5,
+   "time": 300,
+   "mobileTime": 380,
+   "diff": 11
   }
  ],
  "edges": [
@@ -1264,6 +1362,48 @@
    "source": 59,
    "target": 60,
    "_id": "5960"
+  },
+  {
+   "id": "temp",
+   "source": 53,
+   "target": 61,
+   "_id": "5361"
+  },
+  {
+   "id": "temp",
+   "source": 61,
+   "target": 62,
+   "_id": "6162"
+  },
+  {
+   "id": "temp",
+   "source": 62,
+   "target": 63,
+   "_id": "6263"
+  },
+  {
+   "id": "temp",
+   "source": 63,
+   "target": 64,
+   "_id": "6364"
+  },
+  {
+   "id": "temp",
+   "source": 64,
+   "target": 65,
+   "_id": "6465"
+  },
+  {
+   "id": "temp",
+   "source": 65,
+   "target": 66,
+   "_id": "6566"
+  },
+  {
+   "id": "temp",
+   "source": 66,
+   "target": 67,
+   "_id": "6667"
   }
  ]
 }
