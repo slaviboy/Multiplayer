@@ -23,6 +23,23 @@ Esc or P pauses (not online). Phones and tablets get on-screen buttons. Headers
 happen when the ball meets a head: the face sends it forward in a loop, the top
 straight up, the back of the head backwards.
 
+## Power-ups
+
+After 20–30 seconds of play a fire icon and an ice icon float high over the pitch
+(each at its own random time and place; they come back 12–22 s after being taken,
+and fade after 12 s). When the ball hits one after a player touched it (kick,
+header or any touch):
+
+- **Fire** is for that player: for 10 s their next shot or header is a fireball,
+  1.5× faster and flatter, which goes through the other player and knocks them
+  over for 1.5 s.
+- **Ice** is against the other player: frozen in an ice block for 3 s (it cracks
+  in three stages); every key press breaks it a little sooner.
+
+They can be switched off with the Power-ups option. The ice blocks, shards, fire
+texture and sounds are the original's boosters. Where and when icons appear comes
+from a seed in the match state, so online both players see the same ones.
+
 ## Files
 
 - `js/sim.js` – the match: physics, kicks, headers, goals, clock, golden goal.

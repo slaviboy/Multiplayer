@@ -36,9 +36,12 @@ test('against the CPU: pick a player, play, the result, a rematch', { timeout: 1
     await page.click('button[aria-label="Next boots"]');
     const kit = await page.evaluate(() => ({ ...window.__football.app.kits[0] }));
     await page.evaluate(() => (window.__football.app.options.seconds = 4)); // a short match
+    await page.evaluate(() => (window.__football.firstItem = [0.5, 1])); // power-ups at once
+    assert.equal(await page.locator('.fb-chip[data-value="true"]').getAttribute('aria-checked'), 'true', 'power-ups on by default');
     await page.click('[data-action="confirm"]');
     await waitScreen(page, 'versus');
     await waitPhase(page, 'play');
+    await page.waitForFunction(() => window.__football.state.items.length === 2 && window.__football.state.items.every((i) => i.live), null, { timeout: 10000 });
     const m = await page.evaluate(() => ({ kit: window.__football.app.match.kits[0], mode: window.__football.app.match.mode }));
     assert.equal(m.mode, 'cpu');
     assert.equal(m.kit.head, 'kylo-mbappy');
@@ -84,6 +87,7 @@ test('two players on one keyboard each move their own player', { timeout: 90_000
     await waitScreen(page, 'menu');
     await page.click('[data-action="local"]');
     await waitScreen(page, 'select');
+    await page.click('.fb-chip[data-value="false"]'); // power-ups off
     await page.click('[data-action="confirm"]'); // player 1
     await page.waitForFunction(() => document.querySelector('.fb-select.fb-side-right'));
     await page.click('.fb-head[data-head="mo-salaro"]');
@@ -98,6 +102,7 @@ test('two players on one keyboard each move their own player', { timeout: 90_000
     assert.ok((await playerX(page, 0)) > a0 + 0.8, 'D moves the left player');
     assert.ok((await playerX(page, 1)) > b0 + 0.8, '→ moves the right player');
     assert.equal(await page.evaluate(() => window.__football.app.match.names[1]), 'Mo Salaro');
+    assert.deepEqual(await page.evaluate(() => window.__football.state.items), [], 'power-ups switched off');
     assert.deepEqual(page.errors, []);
   } finally {
     await browser.close();
@@ -158,6 +163,7 @@ test('online: a phone joins through the invite link, both play the same match, c
     await host.click('.fb-head[data-head="harvin-cane"]');
     await host.evaluate(() => (window.__football.app.options.seconds = 12));
     await host.evaluate(() => (window.__football.testScore = [3, 0])); // so the short match can't end level (both pages)
+    await host.evaluate(() => (window.__football.firstItem = [2, 3])); // power-ups soon (the host sends it)
     await host.click('[data-action="confirm"]');
     const link = await host.locator('.ol-link').inputValue();
     assert.match(link, /\/games\/football\/#g=[A-Za-z0-9_-]{22}$/);
@@ -181,6 +187,14 @@ test('online: a phone joins through the invite link, both play the same match, c
     assert.deepEqual(gi.names, hi.names);
     assert.equal(gi.stadium, hi.stadium, "the host's pitch");
     assert.ok(await guest.locator('#pad').isVisible(), 'the phone has its touch pad');
+
+    // the power-ups appear in the same places on both screens
+    const icons = (p) =>
+      p.evaluate(() =>
+        window.__football.state.items.every((i) => i.live) ? window.__football.state.items.map((i) => `${i.kind} ${i.x} ${i.y}`) : null,
+      );
+    await Promise.all([host, guest].map((p) => p.waitForFunction(() => window.__football.state.items.every((i) => i.live), null, { timeout: 20000 })));
+    assert.deepEqual(await icons(guest), await icons(host));
 
     // each moves their own player, and both screens agree
     const hx = await playerX(host, 0);

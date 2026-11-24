@@ -11,7 +11,7 @@
 // second both compare a hash of the match, so a difference would show at once.
 // Signalling goes through public Nostr relays, the game itself over WebRTC
 // directly between the two browsers (../../../shared/online/peer-link.js).
-import { createInvite, inviteUrl, isInt, isShortString, parseInvite } from '../../../shared/online/protocol.js';
+import { createInvite, inviteUrl, isFiniteNumber, isInt, isShortString, parseInvite } from '../../../shared/online/protocol.js';
 import { PeerLink } from '../../../shared/online/peer-link.js';
 import { Lobby, translate } from '../../../shared/online/lobby.js';
 import { Chat } from '../../../shared/online/chat.js';
@@ -146,7 +146,7 @@ export class Online {
       title: 'Choose your player',
       sub: 'Then invite a friend: you play on the left, your friend on the right.',
       kit: this.api.kit,
-      options: { stadium: options.stadium, seconds: options.seconds, onChange: (k, v) => (options[k] = v) },
+      options: { stadium: options.stadium, seconds: options.seconds, powerups: options.powerups, onChange: (k, v) => (options[k] = v) },
       confirm: 'Invite a friend',
       onBack: () => this.api.toMenu(),
       onDone: (kit) => {
@@ -329,6 +329,9 @@ export class Online {
         kits: [this.myKit, this.partnerKit],
         stadium: this.api.options.stadium,
         seconds: this.api.options.seconds,
+        seed: (Math.random() * 2 ** 31) | 0, // where and when the power-ups appear, the same for both
+        pu: this.api.options.powerups === false ? 0 : 1,
+        first: (window.__football && window.__football.firstItem) || undefined, // tests: power-ups sooner
       };
       if (this.send(msg)) this.begin(msg);
     }, 1800);
@@ -351,7 +354,17 @@ export class Online {
       desynced: false,
     };
     const names = kits.map(kitName);
-    await this.api.startMatch({ mode: 'online', kits, names, stadium: msg.stadium, seconds: msg.seconds, online: this.net });
+    await this.api.startMatch({
+      mode: 'online',
+      kits,
+      names,
+      stadium: msg.stadium,
+      seconds: msg.seconds,
+      seed: msg.seed,
+      powerups: msg.pu === 1,
+      firstItem: msg.first,
+      online: this.net,
+    });
     this.chat.clear();
     this.chat.setEnabled(true);
   }
@@ -463,7 +476,7 @@ export class Online {
       title: 'Choose your player',
       sub: 'You play on the left.',
       kit: this.myKitForMatch || this.api.kit,
-      options: { stadium: this.api.options.stadium, seconds: this.api.options.seconds, onChange: (k, v) => (this.api.options[k] = v) },
+      options: { stadium: this.api.options.stadium, seconds: this.api.options.seconds, powerups: this.api.options.powerups, onChange: (k, v) => (this.api.options[k] = v) },
       confirm: 'Ready',
       onBack: () => this.confirmLeave(),
       onDone: (kit) => {
@@ -486,7 +499,9 @@ export class Online {
         return (
           fromHost && isInt(m.m) && m.m > 0 && isInt(m.delay) && m.delay >= 1 && m.delay <= 12 &&
           Array.isArray(m.kits) && m.kits.length === 2 && m.kits.every((k) => !!validKit(k)) &&
-          STADIUMS.includes(m.stadium) && isInt(m.seconds) && m.seconds >= 5 && m.seconds <= 600
+          STADIUMS.includes(m.stadium) && isInt(m.seconds) && m.seconds >= 5 && m.seconds <= 600 &&
+          isInt(m.seed) && (m.pu === 0 || m.pu === 1) &&
+          (m.first === undefined || (Array.isArray(m.first) && m.first.length === 2 && m.first.every((v) => isFiniteNumber(v) && v >= 0.5 && v <= 120)))
         );
       case 'in':
         return isInt(m.m) && isInt(m.k) && m.k >= 0 && Array.isArray(m.v) && m.v.length <= 420 && m.v.every((b) => isInt(b) && b >= 0 && b <= MAX_INPUT);

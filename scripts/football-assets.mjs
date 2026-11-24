@@ -75,6 +75,14 @@ for (const [src, out, w] of [
   ['Icon_Joystick.png', 'ui/icon-joystick.webp'],
   ['Icon_PartyCharacter.png', 'ui/icon-friends.webp'],
   ['Referee_Whistle.png', 'ui/referee.webp', 260],
+  // power-ups: the ice block (three stages of cracks), its shards, fire, glow and sparks
+  ['Ice_Player1.png', 'sprites/ice-1.webp'],
+  ['Ice_Player2.png', 'sprites/ice-2.webp'],
+  ['Ice_Player3.png', 'sprites/ice-3.webp'],
+  ['Ice_Broken1.png', 'sprites/ice-shards.webp'],
+  ['fire2.png', 'sprites/fire.webp', 256],
+  ['ring.png', 'sprites/ring.webp', 256],
+  ['star.png', 'sprites/star.webp', 96],
 ]) {
   add(`${T}/${src}`, out, w);
 }
@@ -121,6 +129,17 @@ const sounds = {
   'Sfx/Opponent_Matched.m4a': 'matched',
   'Sfx/Finish_MatchGameOver.m4a': 'game-over',
   'Sfx/Level_Up.m4a': 'win',
+  'Sfx/Item_Spawn.m4a': 'item-spawn',
+  'Sfx/Item_Hit.m4a': 'item-hit',
+  'Sfx/Icing.m4a': 'icing',
+  'Sfx/Ice_Breaking1.m4a': 'ice-break-1',
+  'Sfx/Ice_Breaking2.m4a': 'ice-break-2',
+  'Sfx/Ice_Breaking3.m4a': 'ice-break-3',
+  'Sfx/Ice_BreakingLast.m4a': 'ice-shatter',
+  'Sfx/Wind_Long.m4a': 'whoosh-long',
+  'Sfx/Wind_Middle.m4a': 'whoosh',
+  'Sfx/Damage1.m4a': 'damage-1',
+  'Sfx/Damage2.m4a': 'damage-2',
 };
 
 for (const dir of ['heads', 'jerseys', 'boots', 'necks', 'sprites', 'ui', 'stadiums', 'sounds']) {

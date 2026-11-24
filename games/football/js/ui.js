@@ -117,6 +117,12 @@ export class Screens {
         el('li', {}, [el('b', { text: 'Two players on one keyboard: ' }), 'left W A D T Y, right ← ↑ → K L']),
         el('li', {}, [el('b', { text: 'Phone or tablet: ' }), 'buttons on the screen']),
       ]),
+      el('p', {}, [
+        el('b', { text: 'Power-ups: ' }),
+        'after 20–30 seconds fire and ice icons float over the pitch. Hit one with the ball: ' +
+          '🔥 fire makes your next shot or header a fireball that knocks the other player over; ' +
+          '❄️ ice freezes the other player for 3 seconds (press keys to break free sooner).',
+      ]),
       el('p', { class: 'fb-hint', text: 'Headers loop, kicks stay low. Run forward for more power. Get under the ball to lob it.' }),
     ]);
     const node = el('div', { class: 'fb-screen fb-menu' }, [
@@ -259,6 +265,7 @@ export class Screens {
       group('Pitch', STADIUMS, 'stadium', (v) => STADIUM_NAMES[v] || v),
       group('Time', LENGTHS, 'seconds', (v) => `${v / 60 | 0}:${String(v % 60).padStart(2, '0')}`),
       'level' in options ? group('CPU', Object.keys(LEVEL_NAMES), 'level', (v) => LEVEL_NAMES[v]) : null,
+      'powerups' in options ? group('Power-ups', [true, false], 'powerups', (v) => (v ? '🔥❄️ On' : 'Off')) : null,
     ]);
   }
 

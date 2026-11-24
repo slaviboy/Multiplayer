@@ -62,6 +62,12 @@ export class Cpu {
     const f = p.f;
     let keys = 0;
 
+    if (p.frozen > 0) {
+      // frozen: hammer a key to break out of the ice sooner
+      this.lastKey = this.lastKey ? 0 : this.rng() < L.jump ? KEY.JUMP : 0;
+      return this.lastKey;
+    }
+
     if (s.tick >= this.nextThink) {
       this.nextThink = s.tick + L.think;
       this.offset = (this.rng() - 0.5) * L.error;
