@@ -2,8 +2,8 @@
 
 Each `coop_*.mjs` file is one level. `npm run levels` turns them into Tiled JSON in
 `../data/friends/levels/`; `npm run check` fails when a built file is out of date.
-Files starting with `_` are helpers, not levels (`_grid.mjs` draws large maps by
-coordinates).
+Files starting with `_` are helpers, not levels: `_grid.mjs` draws large maps by
+coordinates, and `_track.mjs` builds long levels from proven pieces (below).
 
 ```js
 export default {
@@ -47,9 +47,47 @@ export default {
 | `monster` | `path: [[colA, floorRow], [colB, floorRow]]` | `group` → frozen and harmless while on; `speed`, `phase` |
 | `fireflies` | `path: [[col, row], ...]` | `group` → only shown while on; `count`, `speed` |
 
+Instead of a marker, any object can take `cell: [col, row]` (and a ladder
+`rect: [col, row, w, h]`), which long generated levels need.
+
 Groups: triggers (pushers, levers) in a group are OR'ed; everything else in the
 group follows. Level properties: `darkness` (`'dark'` or `'reveal'`), `lightRadius`,
-`piggyback`.
+`piggyback`, and `environment`: an outdoor look and weather, one of `snow`, `rain`,
+`storm` (also dark, with lightning), `spring`, `summer`, `winter`, `lake`
+(`extras/environments.js`; decoration only, physics are unchanged).
+
+## Long levels from pieces (`_track.mjs`)
+
+Levels 13-19 are chains of pieces, left to right. Each piece draws its part of the
+map, adds its objects and the bot steps for both characters, so a new chain is
+proven by `LEVEL=<name> npm run test:e2e` without writing a walkthrough by hand.
+
+```js
+const t = track({ height: 30, floor: 24 }); // floor = row of the ground's top
+t.start().hill().gate('fb').bridgePool('wg').pillars().ledge().descend(3).doors();
+export default t.level({ file, title, properties: { environment: 'spring' } });
+```
+
+| piece | what the players do | floor |
+|---|---|---|
+| `start`, `doors` | where they begin and end | |
+| `flat(w)`, `hill()`, `ice(w)` | walk (diamonds over the flat) | |
+| `climb(d)`, `descend(d)` | slopes up or down | -d / +d |
+| `gate(holder)` | one holds a button, the other passes and pulls the lever that keeps it open | |
+| `bridgePool(wader)` | a pool only the wader survives; a far button raises a bridge | |
+| `gooBridge(holder)` | goo: one holds, the other crosses and locks the bridge with a lever | |
+| `pillars()` | three pillars over spikes, a flag on each side | |
+| `smallPools()` | a lava pool for Lisa to jump, a water pool for Stan | |
+| `ledge()` | 5 high: Lisa from Stan's head, a lever lowers a ladder (piggyback) | -5 |
+| `lift()` | 7 high: Lisa rides a lift while Stan holds its button, then a ladder | -7 |
+| `boxBank()` | 7 high: Stan pushes the box, stands on it, Lisa jumps from his head | -7 |
+| `raft(rider)` | the partner holds a button, a raft carries the rider over, the partner wades | |
+| `swampRaft()` | goo with a raft called from either bank (button near, lever far) | |
+| `timedCover(runner)` | the partner wades over and presses a 6-second timed button | |
+| `monsters()` | Stan holds the light on, Lisa runs past frozen monsters to the lever | |
+
+Pits and bridges need the floor at least 5 rows above the bottom; climbing pieces
+need room above. Keep levels under about 240 tiles wide (WebGL texture sizes).
 
 ## Physics to design by
 
