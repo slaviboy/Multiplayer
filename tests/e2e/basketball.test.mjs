@@ -123,9 +123,20 @@ test('host invites, a phone joins, they pick teams and play in sync, then a rema
     await host.evaluate(() => Phaser.GAMES[0].state.states.postmatchstate.onNextState());
     await Promise.all([host, guest].map((p) => waitState(p, 'randomstate')));
     assert.equal(await stateOf(guest), 'randomstate');
-
     assert.deepEqual(host.errors, [], 'no uncaught errors on host');
     assert.deepEqual(guest.errors, [], 'no uncaught errors on guest');
+
+    // --- the guest reloads in the middle of a match: both end up on the team screen again
+    await host.waitForTimeout(1000);
+    await host.evaluate(() => Phaser.GAMES[0].state.states.randomstate.onPlay());
+    await Promise.all([host, guest].map((p) => p.waitForFunction(() => window.__online.tick > 60, null, { timeout: 60000 })));
+    await guest.reload();
+    await Promise.all(
+      [host, guest].map((p) =>
+        p.waitForFunction(() => window.__online && window.__online.connected && Phaser.GAMES[0].state.current === 'randomstate', null, { timeout: 90000 }),
+      ),
+    );
+    assert.deepEqual(host.errors, [], 'no uncaught errors on host after the reload');
   } finally {
     await browser.close();
     server.stop();

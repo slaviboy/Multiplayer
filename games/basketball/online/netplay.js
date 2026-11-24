@@ -283,6 +283,10 @@ function onMessage(m) {
   switch (m.t) {
     case 'sel':
       if (typeof m.dev === 'boolean') S.partnerDesktop = m.dev;
+      if (S.match && current() === 'gameplay') {
+        // the partner is on the team screen (they reloaded): this match is over for both
+        abandonMatch();
+      }
       applySelection(m, S.role === 'guest' ? 'host' : 'guest');
       break;
     case 'start':
@@ -407,6 +411,14 @@ function toSelectIfReady() {
 }
 
 // ---------------------------------------------------------------- starting a match
+
+function abandonMatch() {
+  S.match = null;
+  finishFades();
+  S.lobby.toast('Your friend left the match');
+  S.wantSelect = true;
+  goState('randomstate');
+}
 
 function hostStartMatch() {
   if (S.role !== 'host' || !live()) return;
