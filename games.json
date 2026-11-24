@@ -14,9 +14,10 @@
       "id": "basketball",
       "title": "Basketball Stars",
       "path": "games/basketball/",
-      "description": "Fast 1-on-1 and 2-on-2 street basketball with dunks, steals and super shots. Play the CPU or a friend on the same keyboard.",
+      "description": "Fast 1-on-1 and 2-on-2 street basketball with dunks, steals and super shots. Play the CPU, a friend on the same keyboard, or a friend online.",
       "thumbnail": "games/basketball/thumbnail.jpg",
       "players": "1–2",
+      "online": "Online versus",
       "tags": ["Sports", "Versus", "Arcade"]
     }
   ]
