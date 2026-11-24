@@ -42,6 +42,15 @@ export const CORE_IMAGES = [
   'ui/goal.webp',
   'ui/match-starts.webp',
   'ui/final-whistle.webp',
+  // power-ups
+  'ui/icon-shot.webp',
+  'sprites/ice-1.webp',
+  'sprites/ice-2.webp',
+  'sprites/ice-3.webp',
+  'sprites/ice-shards.webp',
+  'sprites/fire.webp',
+  'sprites/ring.webp',
+  'sprites/star.webp',
 ];
 
 /** Paths of the images a kit (head, jersey, boots) needs. */

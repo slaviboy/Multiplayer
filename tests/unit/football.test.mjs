@@ -5,7 +5,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import {
   BALL_R,
   BAR_Y,
+  FIRE_READY,
+  FREEZE_TICKS,
   GOAL_TICKS,
+  ITEM_KINDS,
   GOAL_X,
   INTRO_TICKS,
   KEY,
@@ -181,6 +184,102 @@ test('time up with a draw goes to a golden goal; the next goal ends the match', 
   runTicks(t, TICKS_PER_SECOND + 1);
   assert.equal(t.phase, PHASE.END);
   assert.equal(t.winner, 0);
+});
+
+/** Runs until every power-up icon is up; returns the play ticks it took. */
+function untilItemsLive(s, limit = 60 * TICKS_PER_SECOND) {
+  let n = 0;
+  while (!s.items.every((i) => i.live) && n++ < limit) step(s, [0, 0]);
+  return n;
+}
+
+test('power-ups: fire and ice appear after 20-30 s of play, high up, the same for the same seed', () => {
+  const seen = [];
+  for (const seed of [1, 2, 3, 99]) {
+    const s = kickedOff({ seed });
+    const when = {};
+    for (let t = 1; t <= 31 * TICKS_PER_SECOND; t++) {
+      step(s, [0, 0]);
+      for (const e of s.events) if (e.type === 'item') when[e.kind] = { t, x: e.x, y: e.y };
+    }
+    for (const kind of ITEM_KINDS) {
+      const w = when[kind];
+      assert.ok(w, `seed ${seed}: ${kind} appeared`);
+      assert.ok(w.t >= 20 * TICKS_PER_SECOND && w.t <= 30 * TICKS_PER_SECOND + 1, `${kind} at ${w.t / TICKS_PER_SECOND}s`);
+      assert.ok(w.y >= 4.7 && w.y <= 6.2 && Math.abs(w.x) <= 6.5, `${kind} at ${w.x}, ${w.y}`);
+    }
+    seen.push(JSON.stringify(when));
+  }
+  assert.equal(new Set(seen).size, seen.length, 'different seeds, different places');
+  const again = kickedOff({ seed: 2 });
+  runTicks(again, 31 * TICKS_PER_SECOND);
+  const first = kickedOff({ seed: 2 });
+  runTicks(first, 31 * TICKS_PER_SECOND);
+  assert.equal(hashState(again), hashState(first));
+  assert.deepEqual(createMatch({ powerups: false }).items, []);
+});
+
+test('power-ups: ice freezes the other player of whoever touched the ball; keys break it sooner', () => {
+  const s = kickedOff({ seed: 4, firstItem: [0.1, 0.1] });
+  untilItemsLive(s);
+  const ice = s.items.find((i) => i.kind === 'ice');
+  // an untouched ball passes through
+  Object.assign(s.ball, { x: ice.x, y: ice.y, vx: 0, vy: 0, last: -1 });
+  step(s, [0, 0]);
+  assert.ok(ice.live && s.players[1].frozen === 0, 'nobody touched the ball: nothing happens');
+  Object.assign(s.ball, { x: ice.x, y: ice.y, vx: 0, vy: 0, last: 0 });
+  step(s, [0, 0]);
+  assert.equal(ice.live, false);
+  const p = s.players[1];
+  assert.ok(p.frozen > 0 && s.players[0].frozen === 0, 'the other player is frozen');
+  const x = p.x;
+  runTicks(s, 20, () => [0, KEY.LEFT | KEY.JUMP | KEY.SHOT]);
+  assert.equal(p.x, x, 'a frozen player cannot move');
+  assert.equal(p.y, 0, 'nor jump');
+  // pressing keys again and again cracks the ice sooner than waiting
+  const wait = p.frozen;
+  let ticks = 0;
+  while (p.frozen > 0) {
+    step(s, [0, ticks % 2 ? 0 : KEY.LEFT]);
+    ticks++;
+  }
+  assert.ok(ticks < wait / 2, `free after ${ticks} ticks instead of ${wait}`);
+  assert.equal(FREEZE_TICKS, 3 * TICKS_PER_SECOND);
+});
+
+test('power-ups: fire makes the next kick a fireball that knocks the other player over', () => {
+  const s = kickedOff({ seed: 8, firstItem: [0.1, 0.1] });
+  untilItemsLive(s);
+  const fire = s.items.find((i) => i.kind === 'fire');
+  Object.assign(s.ball, { x: fire.x, y: fire.y, vx: 0, vy: 0, last: 1 });
+  step(s, [0, 0]);
+  assert.ok(s.players[1].fire > 0 && s.players[0].fire === 0, 'fire for the right player, who touched the ball');
+  // the right player shoots at the left one
+  Object.assign(s.players[1], { x: 2 });
+  Object.assign(s.players[0], { x: -1.5 });
+  Object.assign(s.ball, { x: 1.4, y: BALL_R, vx: 0, vy: 0 });
+  step(s, [0, KEY.SHOT]);
+  assert.ok(s.ball.fire > 0 && s.ball.vx < -20, `a fireball (${s.ball.vx})`);
+  assert.equal(s.players[1].fire, 0, 'used up');
+  let stunned = false;
+  for (let i = 0; i < 20 && !stunned; i++) {
+    step(s, [0, 0]);
+    stunned = s.players[0].stun > 0;
+  }
+  assert.ok(stunned, 'the left player was knocked over');
+  // a dazed player cannot play for a moment (and is pushed back)
+  const x = s.players[0].x;
+  runTicks(s, 5, () => [KEY.RIGHT, 0]);
+  assert.ok(s.players[0].x <= x, 'stunned: no running');
+  assert.ok(s.ball.x < s.players[0].x - 0.5, 'the ball went through');
+  // unused fire runs out
+  const t = kickedOff({ seed: 8, firstItem: [0.1, 0.1] });
+  untilItemsLive(t);
+  const f2 = t.items.find((i) => i.kind === 'fire');
+  Object.assign(t.ball, { x: f2.x, y: f2.y, vx: 0, vy: 0, last: 0 });
+  step(t, [0, 0]);
+  runTicks(t, FIRE_READY + 1);
+  assert.equal(t.players[0].fire, 0);
 });
 
 test('CPU matches always finish, and harder CPUs win more', () => {

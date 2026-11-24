@@ -30,13 +30,15 @@ const app = {
     stadium: STADIUMS.includes(prefs.stadium) ? prefs.stadium : 'favela-day',
     seconds: [60, 90, 120].includes(prefs.seconds) ? prefs.seconds : 90,
     level: LEVEL_NAMES[prefs.level] ? prefs.level : 'normal',
+    powerups: prefs.powerups !== false,
   },
   kits: [validKit(prefs.kit) || defaultKit('leon-messo'), validKit(prefs.kit2) || defaultKit('cristo-ronalto')],
   opponent: null, // the CPU's outfit, kept for rematches
 };
 
 function remember() {
-  Object.assign(prefs, { stadium: app.options.stadium, seconds: app.options.seconds, level: app.options.level, kit: app.kits[0], kit2: app.kits[1] });
+  const { stadium, seconds, level, powerups } = app.options;
+  Object.assign(prefs, { stadium, seconds, level, powerups, kit: app.kits[0], kit2: app.kits[1] });
   savePrefs(prefs);
 }
 
@@ -83,7 +85,9 @@ function chooseForLocal(step2 = false) {
     sub: second ? 'Right side: ← ↑ → to move and jump, K shot, L aerial.' : 'Left side: W A D to move and jump, T shot, Y aerial.',
     kit: app.kits[second ? 1 : 0],
     side: second ? 'right' : 'left',
-    options: second ? { stadium: app.options.stadium, seconds: app.options.seconds, onChange: (k, v) => (app.options[k] = v) } : app.options,
+    options: second
+      ? { stadium: app.options.stadium, seconds: app.options.seconds, powerups: app.options.powerups, onChange: (k, v) => (app.options[k] = v) }
+      : { stadium: app.options.stadium, seconds: app.options.seconds, powerups: app.options.powerups, onChange: (k, v) => (app.options[k] = v) },
     confirm: second ? 'Play' : 'Next',
     onBack: second ? () => chooseForLocal() : toMenu,
     onDone: (kit) => {
@@ -98,7 +102,9 @@ function chooseForLocal(step2 = false) {
 function playLocal() {
   const kits = distinctKits(app.kits[0], app.kits[1]);
   const names = kits.map(kitName);
-  versusThen({ kits, names, labels: ['Player 1', 'Player 2'] }, () => startMatch({ mode: 'local', kits, names, ...app.options }));
+  versusThen({ kits, names, labels: ['Player 1', 'Player 2'] }, () =>
+    startMatch({ mode: 'local', kits, names, ...app.options, seed: (Math.random() * 2 ** 31) | 0 }),
+  );
 }
 
 function versusThen(o, then) {
@@ -117,12 +123,15 @@ function versusThen(o, then) {
  * Starts a match. `online` matches are driven by online.js (it calls runTick);
  * the others run here, at 40 ticks a second.
  */
-async function startMatch({ mode, kits, names, stadium, seconds, level = 'normal', seed = 1, online: net = null }) {
+async function startMatch({ mode, kits, names, stadium, seconds, level = 'normal', seed = 1, powerups = true, firstItem, online: net = null }) {
   await loadAll([...kitImages(kits[0]), ...kitImages(kits[1]), `stadiums/${stadium}.jpg`]);
   app.mode = mode;
+  // tests: power-ups sooner (window.__football.firstItem = [seconds, seconds])
+  if (!firstItem && mode !== 'online' && window.__football.firstItem) firstItem = window.__football.firstItem;
   app.match = {
     mode,
-    s: createMatch({ seconds }),
+    s: createMatch({ seconds, seed, powerups, firstItem }),
+    humans: mode === 'local' ? [0, 1] : mode === 'online' ? [net.me] : [0],
     prev: null,
     kits,
     names,
@@ -208,6 +217,27 @@ function soundFor(e, m) {
       break;
     case 'jump':
       sound.play('jump-', { volume: 0.35 });
+      break;
+    // power-ups
+    case 'item':
+      sound.play('item-spawn', { volume: 0.7 });
+      break;
+    case 'power':
+      sound.play('item-hit', { volume: 0.9 });
+      sound.play(e.kind === 'ice' ? 'icing' : 'whoosh-long', { volume: 0.8 });
+      break;
+    case 'crack':
+      sound.play('ice-break-', { volume: 0.5 });
+      break;
+    case 'thaw':
+      sound.play('ice-shatter', { volume: 0.8 });
+      break;
+    case 'fireball':
+      sound.play('shot-4', { volume: 1 });
+      sound.play('whoosh', { volume: 0.9 });
+      break;
+    case 'stun':
+      sound.play('damage-', { volume: 0.9 });
       break;
   }
 }
@@ -309,7 +339,7 @@ function frame(now) {
       if (n === 6) m.acc = 0; // too far behind (a slow frame): don't try to catch up
       alpha = m.acc / DT;
     }
-    renderer.draw(m.s, m.prev, Math.min(1, alpha), m.paused ? 0 : dt, { kits: m.kits, stadium: m.stadium });
+    renderer.draw(m.s, m.prev, Math.min(1, alpha), m.paused ? 0 : dt, { kits: m.kits, stadium: m.stadium, humans: m.humans, touch });
     renderer.drawScoreboard(m.s, m.names, { top: online.hudSpace() });
     if (!touch) renderer.drawKeyHints(m.mode === 'local' ? HINTS_TWO : HINTS_SOLO);
     if (m.s.phase === PHASE.END && m.s.phaseTick >= RESULT_DELAY && !m.resultShown) {
@@ -372,7 +402,7 @@ window.__football = {
   step(inputs = [0, 0], n = 1) {
     for (let i = 0; i < n; i++) runTick(inputs);
     const m = app.match;
-    renderer.draw(m.s, null, 1, 0.025 * n, { kits: m.kits, stadium: m.stadium });
+    renderer.draw(m.s, null, 1, 0.025 * n, { kits: m.kits, stadium: m.stadium, humans: m.humans, touch });
   },
   get state() {
     return app.match ? app.match.s : null;

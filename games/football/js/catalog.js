@@ -9,4 +9,4 @@ export const BOOTS = [ { "id": "acid-rush", "name": "Acid Rush" }, { "id": "aqua
 
 export const STADIUMS = ["sunset","favela-day","favela-night"];
 
-export const SOUNDS = ["menu-music","whistle-start","whistle-end","whistle-final","count-32","count-1","goal-1","goal-2","goal-3","cheer-1","cheer-2","boo-1","shot-1","shot-2","shot-3","shot-4","touch-1","touch-2","touch-3","touch-4","bounce-1","bounce-2","bounce-3","post-1","post-2","post-3","jump-1","jump-2","hit-1","hit-2","click","cancel","matched","game-over","win"];
+export const SOUNDS = ["menu-music","whistle-start","whistle-end","whistle-final","count-32","count-1","goal-1","goal-2","goal-3","cheer-1","cheer-2","boo-1","shot-1","shot-2","shot-3","shot-4","touch-1","touch-2","touch-3","touch-4","bounce-1","bounce-2","bounce-3","post-1","post-2","post-3","jump-1","jump-2","hit-1","hit-2","click","cancel","matched","game-over","win","item-spawn","item-hit","icing","ice-break-1","ice-break-2","ice-break-3","ice-shatter","whoosh-long","whoosh","damage-1","damage-2"];

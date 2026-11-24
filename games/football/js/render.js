@@ -4,7 +4,7 @@
 // animation clips. Nothing here affects the match: it only reads sim state, so it
 // may use the clock, trig and Math.random freely.
 import { img } from './assets.js';
-import { BALL_R, GOAL_X, INTRO_TICKS, KICK_TICKS, PHASE, TICKS_PER_SECOND as TPS } from './sim.js';
+import { BALL_R, FIRE_READY, GOAL_X, INTRO_TICKS, ITEM_LIFE, ITEM_R, KICK_TICKS, PHASE, PLAYER_H, TICKS_PER_SECOND as TPS } from './sim.js';
 
 export const VIEW_H = 10.8; // the original camera: orthographic size 5.4
 export const VIEW_W = 19.2;
@@ -32,11 +32,12 @@ export function restPose() {
   };
 }
 
-/** The shadow sprite is a white ellipse the original tints dark; tint it once. */
-let darkShadow = null;
-export function shadowImage() {
-  if (darkShadow) return darkShadow;
-  const im = img('sprites/shadow.webp');
+/** A white sprite in a colour (the original tints its white shadow, stars and rings). */
+const tints = new Map();
+function tinted(path, color) {
+  const key = `${path} ${color}`;
+  if (tints.has(key)) return tints.get(key);
+  const im = img(path);
   if (!im) return null;
   const c = document.createElement('canvas');
   c.width = im.naturalWidth;
@@ -44,11 +45,16 @@ export function shadowImage() {
   const g = c.getContext('2d');
   g.drawImage(im, 0, 0);
   g.globalCompositeOperation = 'source-in';
-  g.fillStyle = 'rgba(20, 16, 10, 0.42)';
+  g.fillStyle = color;
   g.fillRect(0, 0, c.width, c.height);
-  darkShadow = c;
+  tints.set(key, c);
   return c;
 }
+
+export const shadowImage = () => tinted('sprites/shadow.webp', 'rgba(20, 16, 10, 0.42)');
+
+const POWER_COLOR = { fire: '#ffb02e', ice: '#8fe3ff' };
+const easeOutBack = (u) => 1 + 2.70158 * (u - 1) ** 3 + 1.70158 * (u - 1) ** 2;
 
 function sprite(ctx, image, x, y, rot = 0, sx = 1, sy = 1, size = null) {
   if (!image) return;
@@ -121,6 +127,7 @@ export class Renderer {
     this.trail = [];
     this.effects = [];
     this.wobble = [0, 0]; // goal post shake, seconds left (left goal, right goal)
+    this.iceShake = [0, 0]; // a frozen player's ice block shaking from a key press
     this.time = 0;
     this.resize();
   }
@@ -157,10 +164,73 @@ export class Renderer {
 
   /** Reacts to the events of a tick: effects and shakes (sounds are played by the caller). */
   onEvent(e, s) {
-    if (e.type === 'post') this.wobble[e.side] = 0.67;
-    if (e.type === 'land') this.dust(s.players[e.side].x, 0, 0.9);
-    if (e.type === 'kick') this.dust(s.ball.x, Math.max(0, s.ball.y - BALL_R), 0.6);
-    if (e.type === 'goal') this.confetti(e.side);
+    const p = e.side >= 0 ? s.players[e.side] : null;
+    switch (e.type) {
+      case 'post':
+        this.wobble[e.side] = 0.67;
+        break;
+      case 'land':
+        this.dust(p.x, 0, 0.9);
+        break;
+      case 'kick':
+        this.dust(s.ball.x, Math.max(0, s.ball.y - BALL_R), 0.6);
+        break;
+      case 'goal':
+        this.confetti(e.side);
+        break;
+      case 'item':
+        this.sparks(e.x, e.y, POWER_COLOR[e.kind], 10, 0.7);
+        break;
+      case 'power':
+        this.sparks(e.x, e.y, POWER_COLOR[e.kind], 24, 1.6);
+        this.effects.push({ type: 'flash', x: e.x, y: e.y, color: POWER_COLOR[e.kind], t: 0, life: 0.45, layer: 'over' });
+        this.popup(e.kind === 'fire' ? 'FIREBALL!' : 'FROZEN!', p.x, p.y + PLAYER_H + 0.9, POWER_COLOR[e.kind]);
+        break;
+      case 'crack':
+        this.iceShake[e.side] = 0.15;
+        this.shards(p.x, p.y + 1.1, 1);
+        break;
+      case 'thaw':
+        this.shards(p.x, p.y + 1.1, 9);
+        break;
+      case 'fireball':
+        this.effects.push({ type: 'flash', x: s.ball.x, y: s.ball.y, color: '#ff8a1a', t: 0, life: 0.35, layer: 'over' });
+        break;
+      case 'stun':
+        this.sparks(p.x, p.y + 1.6, '#ffd23f', 14, 1.2);
+        this.popup('OUCH!', p.x, p.y + PLAYER_H + 0.9, '#ff6b5a');
+        break;
+    }
+  }
+
+  sparks(x, y, color, n, speed) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = speed * (1.5 + Math.random() * 3);
+      this.effects.push({ type: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, size: 0.15 + Math.random() * 0.2, color, t: 0, life: 0.5 + Math.random() * 0.4, layer: 'over' });
+    }
+  }
+
+  shards(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      this.effects.push({
+        type: 'shard',
+        x: x + (Math.random() - 0.5) * 0.8,
+        y: y + (Math.random() - 0.5) * 1.2,
+        vx: (Math.random() - 0.5) * 9,
+        vy: 2 + Math.random() * 6,
+        rot: Math.random() * 6,
+        vr: (Math.random() - 0.5) * 12,
+        frame: Math.floor(Math.random() * 6),
+        t: 0,
+        life: 0.8 + Math.random() * 0.4,
+        layer: 'over',
+      });
+    }
+  }
+
+  popup(text, x, y, color) {
+    this.effects.push({ type: 'text', text, x, y, color, t: 0, life: 1.3, layer: 'over' });
   }
 
   dust(x, y, size) {
@@ -207,16 +277,162 @@ export class Renderer {
 
     this.drawGoal('back', -1);
     this.drawGoal('back', 1);
+    this.drawItems(s, alpha);
     for (const q of P) this.drawShadow(q.x + 0.138 * q.p.f, q.y, VISUAL);
     this.drawShadow(bx, by - BALL_R, 0.3);
     this.drawEffects(dt, 'under');
-    for (const q of P) this.drawPlayer(q, s, alpha, dt, view.kits[q.p.side]);
+    for (const q of P) {
+      this.drawPlayer(q, s, alpha, dt, view.kits[q.p.side]);
+      this.drawPowers(q, dt, view.humans || [], view.touch);
+    }
+    if (s.ball.fire > 0) this.burn(bx, by);
+    this.drawEffects(dt, 'mid');
     this.drawTrail(bx, by, s.ball);
-    this.drawBall(bx, by, brot, s.golden);
+    this.drawBall(bx, by, brot, s.golden, s.ball.fire > 0);
     this.drawGoal('front', -1, dt);
     this.drawGoal('front', 1, dt);
     this.drawEffects(dt, 'over');
     this.drawBanners(s, alpha);
+  }
+
+  /** The fire and ice icons floating over the pitch. */
+  drawItems(s, alpha) {
+    const { ctx, k } = this;
+    for (const it of s.items) {
+      if (!it.live) continue;
+      const age = (it.age + alpha) / TPS;
+      const left = (ITEM_LIFE - it.age) / TPS;
+      const fade = left < 2 && Math.floor(left * 8) % 2 === 0 ? 0.35 : 1; // blinks before it goes
+      const pop = age < 0.35 ? Math.max(0, easeOutBack(age / 0.35)) : 1;
+      const cx = this.sx(it.x);
+      const cy = this.sy(it.y + Math.sin(this.time * 2.6 + it.x) * 0.12);
+      const R = ITEM_R * k * pop * (1 + Math.sin(this.time * 5 + it.y) * 0.04);
+      if (R <= 0) continue;
+      const fire = it.kind === 'fire';
+      ctx.save();
+      ctx.globalAlpha = fade;
+      const glow = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 1.8);
+      glow.addColorStop(0, fire ? 'rgba(255, 170, 40, 0.6)' : 'rgba(120, 220, 255, 0.6)');
+      glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = fire ? 'rgba(110, 30, 0, 0.55)' : 'rgba(8, 55, 105, 0.55)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fill();
+      const ring = tinted('sprites/ring.webp', fire ? '#ffd27a' : '#d4f6ff');
+      if (ring) ctx.drawImage(ring, cx - R * 1.12, cy - R * 1.12, R * 2.24, R * 2.24);
+      const icon = img(fire ? 'ui/icon-shot.webp' : 'sprites/ice-1.webp');
+      if (icon) {
+        const ih = R * (fire ? 1.25 : 1.45);
+        const iw = (ih * icon.naturalWidth) / icon.naturalHeight;
+        ctx.translate(cx, cy);
+        ctx.rotate(Math.sin(this.time * 3 + it.x) * 0.15);
+        ctx.drawImage(icon, -iw / 2, -ih / 2, iw, ih);
+      }
+      ctx.restore();
+    }
+  }
+
+  /** Ice around a frozen player, a ready fireball over a player's head, stars over a dazed one. */
+  drawPowers(q, dt, humans, touch) {
+    const { ctx, k } = this;
+    const p = q.p;
+    if (p.frozen > 0) {
+      const frac = p.frozen / (p.frozenFor || 1);
+      const im = img(`sprites/ice-${frac > 0.66 ? 1 : frac > 0.33 ? 2 : 3}.webp`);
+      let shake = 0;
+      if (this.iceShake[p.side] > 0) {
+        this.iceShake[p.side] -= dt;
+        shake = (Math.random() - 0.5) * 0.12;
+      }
+      if (im) {
+        const w = 2.11 * 0.92 * k;
+        const h = 2.59 * 0.92 * k;
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(im, this.sx(q.x + shake) - w / 2, this.sy(q.y + 1.12) - h / 2, w, h);
+        ctx.restore();
+      }
+      if (humans.includes(p.side)) this.label(touch ? 'Tap to break free!' : 'Press keys to break free!', q.x, q.y - 0.35, '#d4f6ff', 0.34);
+    }
+    if (p.fire > 0) {
+      // flames at the boot, and the fireball waiting over the head with the time left
+      if (Math.random() < 0.6) {
+        this.effects.push({ type: 'flame', x: q.x + 0.3 * p.f + (Math.random() - 0.5) * 0.3, y: q.y + 0.25, vx: 0, vy: 1.2, size: 0.28, t: 0, life: 0.4, layer: 'mid' });
+      }
+      const cx = this.sx(q.x);
+      const cy = this.sy(q.y + PLAYER_H + 0.55 + Math.sin(this.time * 4) * 0.06);
+      const R = 0.3 * k;
+      ctx.save();
+      ctx.fillStyle = 'rgba(80, 20, 0, 0.6)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffb02e';
+      ctx.lineWidth = 0.06 * k;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * p.fire) / FIRE_READY);
+      ctx.stroke();
+      const icon = img('ui/icon-shot.webp');
+      if (icon) ctx.drawImage(icon, cx - R * 0.85, cy - R * 0.72, R * 1.7, R * 1.45);
+      ctx.restore();
+    }
+    if (p.stun > 0) {
+      const star = tinted('sprites/star.webp', '#ffd23f');
+      if (star) {
+        for (let i = 0; i < 3; i++) {
+          const a = this.time * 6 + (i * Math.PI * 2) / 3;
+          const sz = 0.4 * k;
+          ctx.drawImage(star, this.sx(q.x + Math.cos(a) * 0.6) - sz / 2, this.sy(q.y + PLAYER_H + 0.3 + Math.sin(a) * 0.15) - sz / 2, sz, sz);
+        }
+      }
+    }
+  }
+
+  /** A burning ball: a glow and flames streaming off it. */
+  burn(x, y) {
+    const { ctx, k } = this;
+    for (let i = 0; i < 2; i++) {
+      this.effects.push({
+        type: 'flame',
+        x: x + (Math.random() - 0.5) * 0.3,
+        y: y + (Math.random() - 0.5) * 0.3,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: 0.5 + Math.random(),
+        size: 0.4 + Math.random() * 0.25,
+        t: 0,
+        life: 0.3 + Math.random() * 0.2,
+        layer: 'mid',
+      });
+    }
+    const cx = this.sx(x);
+    const cy = this.sy(y);
+    const glow = ctx.createRadialGradient(cx, cy, 0.1 * k, cx, cy, 1.0 * k);
+    glow.addColorStop(0, 'rgba(255, 200, 80, 0.55)');
+    glow.addColorStop(1, 'rgba(255, 90, 0, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.0 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  label(text, x, y, color, size) {
+    const { ctx, k } = this;
+    const px = Math.round(size * k);
+    ctx.save();
+    ctx.font = `${px}px "Lilita One", "Arial Black", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = px * 0.22;
+    ctx.strokeStyle = 'rgba(10, 20, 40, 0.85)';
+    ctx.strokeText(text, this.sx(x), this.sy(y));
+    ctx.fillStyle = color;
+    ctx.fillText(text, this.sx(x), this.sy(y));
+    ctx.restore();
   }
 
   drawBackground(name) {
@@ -290,7 +506,15 @@ export class Renderer {
     const sad = s.phase === PHASE.GOAL && s.lastGoal !== p.side;
     bl.sad = Math.max(0, Math.min(1, bl.sad + (sad ? dt : -dt) * 4));
 
-    const pose = p.grounded && !p.move ? idlePose(this.time + p.side * 0.37) : restPose();
+    if (p.frozen > 0) return restPose(); // stiff in the ice
+    const pose = p.grounded && !p.move && !p.stun ? idlePose(this.time + p.side * 0.37) : restPose();
+    if (p.stun > 0) {
+      // player_stun: the head lolls from side to side
+      const w = Math.sin((this.time * 2 * Math.PI) / 1.5);
+      pose.head.rot += 10 * DEG * w;
+      pose.head.x += 0.25 * w;
+      pose.body.rot += 2 * DEG * w;
+    }
     const fp = pose.footPivot;
     fp.rot += (-30 * bl.fwd + 30 * bl.back) * DEG;
     fp.x += -0.1 * bl.fwd + 0.7 * bl.back;
@@ -377,7 +601,7 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawBall(x, y, rot, golden) {
+  drawBall(x, y, rot, golden, burning = false) {
     const im = img(golden ? 'sprites/golden-ball.webp' : 'sprites/ball.webp') || img('sprites/ball.webp');
     if (!im) return;
     const { ctx, k } = this;
@@ -386,6 +610,18 @@ export class Renderer {
     ctx.translate(this.sx(x), this.sy(y));
     ctx.rotate(rot);
     ctx.drawImage(im, -d / 2, -d / 2, d, d);
+    const fire = burning && img('sprites/fire.webp');
+    if (fire) {
+      // the original's fire texture over the ball
+      ctx.beginPath();
+      ctx.arc(0, 0, d / 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.globalAlpha = 0.75;
+      ctx.globalCompositeOperation = 'screen';
+      const off = (this.time * 0.8) % 1;
+      ctx.drawImage(fire, -d * (0.5 + off), -d / 2, d * 2, d);
+      ctx.drawImage(fire, -d * (0.5 + off) + d * 2, -d / 2, d * 2, d);
+    }
     ctx.restore();
   }
 
@@ -393,10 +629,11 @@ export class Renderer {
     const { ctx, k } = this;
     const dust = img('sprites/dust.webp');
     for (const e of this.effects) {
-      if ((e.type === 'dust') !== (layer === 'under')) continue;
+      if ((e.layer || (e.type === 'dust' ? 'under' : 'over')) !== layer) continue;
       e.t += dt;
       const u = e.t / e.life;
       if (u >= 1) continue;
+      if (this.drawEffect(e, u, dt)) continue;
       if (e.type === 'dust' && dust) {
         // one of the two puffs in the top row of the original sprite sheet
         const fw = dust.naturalWidth / 2;
@@ -422,6 +659,88 @@ export class Renderer {
       }
     }
     if (layer === 'over') this.effects = this.effects.filter((e) => e.t < e.life);
+  }
+
+  /** The power-up effects; returns false for the kinds drawEffects handles itself. */
+  drawEffect(e, u, dt) {
+    const { ctx, k } = this;
+    switch (e.type) {
+      case 'flame': {
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+        const r = e.size * (1 - u * 0.7) * k;
+        const cx = this.sx(e.x);
+        const cy = this.sy(e.y);
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, `rgba(255, 245, 190, ${0.9 * (1 - u)})`);
+        g.addColorStop(0.45, `rgba(255, 150, 30, ${0.7 * (1 - u)})`);
+        g.addColorStop(1, 'rgba(220, 40, 0, 0)');
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return true;
+      }
+      case 'spark': {
+        e.vx *= 1 - 3 * dt;
+        e.vy *= 1 - 3 * dt;
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+        const star = tinted('sprites/star.webp', e.color);
+        if (star) {
+          const sz = e.size * (1 - u) * k;
+          ctx.save();
+          ctx.globalAlpha = 1 - u * u;
+          ctx.drawImage(star, this.sx(e.x) - sz / 2, this.sy(e.y) - sz / 2, sz, sz);
+          ctx.restore();
+        }
+        return true;
+      }
+      case 'flash': {
+        const ring = tinted('sprites/ring.webp', e.color);
+        if (ring) {
+          const sz = (0.8 + 2.6 * u) * k;
+          ctx.save();
+          ctx.globalAlpha = 1 - u;
+          ctx.drawImage(ring, this.sx(e.x) - sz / 2, this.sy(e.y) - sz / 2, sz, sz);
+          ctx.restore();
+        }
+        return true;
+      }
+      case 'shard': {
+        const sheet = img('sprites/ice-shards.webp');
+        e.vy -= 14 * dt;
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+        e.rot += e.vr * dt;
+        if (sheet) {
+          // Ice_Broken1: six pieces of ice, three by two
+          const fw = sheet.naturalWidth / 3;
+          const fh = sheet.naturalHeight / 2;
+          const sz = 0.45 * k;
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, (1 - u) * 2.5);
+          ctx.translate(this.sx(e.x), this.sy(e.y));
+          ctx.rotate(e.rot);
+          ctx.drawImage(sheet, (e.frame % 3) * fw, Math.floor(e.frame / 3) * fh, fw, fh, -sz / 2, (-sz * fh) / fw / 2, sz, (sz * fh) / fw);
+          ctx.restore();
+        }
+        return true;
+      }
+      case 'text': {
+        const pop = u < 0.15 ? 0.6 + (0.4 * u) / 0.15 : 1;
+        ctx.save();
+        ctx.globalAlpha = u > 0.75 ? (1 - u) / 0.25 : 1;
+        this.label(e.text, e.x, e.y + u * 0.8, e.color, 0.55 * pop);
+        ctx.restore();
+        return true;
+      }
+      default:
+        return false;
+    }
   }
 
   /** "Match starts", the 3-2-1 countdown, "Gooal!", "Final whistle", "Golden goal". */
