@@ -34,6 +34,12 @@ const HASH_EVERY = 40; // ticks (one second)
 const MAX_OWED = 8; // ticks of catch-up after a wait
 const MAX_PER_FRAME = 6;
 const SIDES = ['p1', 'p2'];
+// the game's three 2-player modes (MatchData.matchMode), as shown in the banners
+const MODES = [
+  { name: '1 vs 1', guest: 'You pick the right team; your friend starts the match' },
+  { name: '2 vs 2, each of you with a CPU team-mate', guest: 'You pick the right team; your friend starts the match' },
+  { name: 'You two together vs 2 CPU players', guest: 'Your friend picks the teams and starts the match' },
+];
 
 const S = {
   game: null,
@@ -381,7 +387,8 @@ function lockPanels() {
     for (const b of [st.matchModePanel.btn1, st.matchModePanel.btn2, st.matchModePanel.btn3]) if (b && b.btn) b.btn.inputEnabled = host;
   }
   if (st.playBtn) st.playBtn.visible = host;
-  S.lobby.banner(host ? null : 'Your friend picks the mode and starts the match');
+  const mode = MODES[md.matchMode] || MODES[0];
+  S.lobby.banner(host ? `${mode.name}. Pick the mode in the middle, then PLAY` : `${mode.name}. ${mode.guest}`);
 }
 
 function toSelectIfReady() {

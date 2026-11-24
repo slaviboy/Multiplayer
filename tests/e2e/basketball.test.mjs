@@ -142,3 +142,118 @@ test('host invites, a phone joins, they pick teams and play in sync, then a rema
     server.stop();
   }
 });
+
+// ---------------------------------------------------------------- the modes with CPU players
+
+/** Screen point of a game object, for a real click on the canvas. */
+const centreOf = (page, pick) =>
+  page.evaluate((src) => {
+    const g = Phaser.GAMES[0];
+    const obj = new Function('g', `return ${src}`)(g);
+    const b = obj.getBounds();
+    const r = g.canvas.getBoundingClientRect();
+    const k = r.width / g.width;
+    return { x: r.left + (b.x + b.width / 2) * k, y: r.top + (b.y + b.height / 2) * k };
+  }, pick);
+
+async function connectPair(browser, server, guestOptions = { viewport: { width: 1280, height: 720 } }) {
+  const host = await openPage(await browser.newContext({ viewport: { width: 1280, height: 720 } }), server.url + GAME);
+  await host.waitForFunction(() => window.__online && Phaser.GAMES[0].state.current === 'menu', null, { timeout: 60000 });
+  await host.waitForTimeout(1200);
+  const at = await centreOf(host, 'g.state.states.menu._olBtn');
+  await host.mouse.click(at.x, at.y);
+  const link = await host.locator('.ol-link').inputValue();
+  const guest = await openPage(await browser.newContext(guestOptions), link);
+  await Promise.all(
+    [host, guest].map((p) =>
+      p.waitForFunction(() => window.__online && window.__online.connected && Phaser.GAMES[0].state.current === 'randomstate', null, { timeout: 60000 }),
+    ),
+  );
+  await host.waitForTimeout(1200); // the screen's tweens
+  return { host, guest };
+}
+
+/** Which controllers each team's players have: 'P1' (host), 'P2' (guest) or 'CPU'. */
+const teamsOf = (page) =>
+  page.evaluate(() => {
+    let core = null;
+    for (const m of Object.values(window.__bb.c)) if (m.exports && m.exports.MainGameCore) core = m.exports.MainGameCore.instance;
+    const who = (pl) => {
+      if (!pl.isHuman) return 'CPU';
+      for (const m of Object.values(window.__bb.c)) {
+        const ex = m.exports || {};
+        if (ex.PlayerController2 && pl.controller instanceof ex.PlayerController2) return 'P2';
+        if (ex.PlayerController && pl.controller instanceof ex.PlayerController) return 'P1';
+      }
+      return '?';
+    };
+    return [core.playersLeft.map(who), core.playersRight.map(who)];
+  });
+
+async function playToTheEnd(host, guest, seconds) {
+  for (const p of [host, guest])
+    await p.evaluate((n) => {
+      window.__online.setMatchSeconds(n);
+      window.__online.testScore = [3, 0]; // a level score means overtime until someone scores
+    }, seconds);
+  const before = await host.evaluate(() => window.__online.matchNo);
+  await host.evaluate(() => Phaser.GAMES[0].state.states.randomstate.onPlay());
+  await Promise.all([host, guest].map((p) => p.waitForFunction((n) => window.__online.matchNo > n && window.__online.tick > 0, before, { timeout: 60000 })));
+  const keys = ['ArrowRight', 'ArrowUp', 'KeyX', 'ArrowLeft', 'KeyB', 'KeyD', 'KeyW', 'KeyV'];
+  for (let i = 0; i < 14; i++) await Promise.all([pressFor(host, keys[i % keys.length], 250), pressFor(guest, keys[(i * 3 + 1) % keys.length], 280)]);
+}
+
+async function waitEnd(host, guest) {
+  // a tie means overtime; the CPU players keep scoring, so it ends
+  await Promise.all([host, guest].map((p) => waitState(p, 'postmatchstate', 120000)));
+  for (const p of [host, guest]) assert.deepEqual(await p.evaluate(() => window.__online.desyncs), [], 'never out of sync');
+  assert.deepEqual(await scoreOf(guest), await scoreOf(host), 'same final score');
+}
+
+test('online with CPU players: the two friends together vs 2 CPU, then 2 v 2 with CPU team-mates', { timeout: 420_000 }, async () => {
+  const server = await startServer();
+  const browser = await launchBrowser();
+  try {
+    const { host, guest } = await connectPair(browser, server);
+
+    // --- the host picks "you two vs CPU" with a real click on the MODE panel
+    const at = await centreOf(host, 'g.state.states.randomstate.matchModePanel.btn3');
+    await host.mouse.click(at.x, at.y);
+    await guest.waitForFunction(() => {
+      for (const m of Object.values(window.__bb.c)) if (m.exports && m.exports.Inventory) return m.exports.Inventory.instance.matchData.matchMode === 2;
+      return false;
+    }, null, { timeout: 10000 });
+    const guestPanels = await guest.evaluate(() => {
+      const st = Phaser.GAMES[0].state.states.randomstate;
+      return [st.selectPlayer.btnLeft.visible, st.selectPlayer2.btnLeft.visible, st.playBtn.visible];
+    });
+    assert.deepEqual(guestPanels, [false, false, false], 'in co-op the host picks both teams');
+    assert.match(await host.locator('.ol-banner').textContent(), /CPU/);
+
+    await playToTheEnd(host, guest, 12);
+    const teams = await teamsOf(host);
+    assert.deepEqual(teams, [['P1', 'P2'], ['CPU', 'CPU']], 'both friends on the left team, two CPU players on the right');
+    assert.deepEqual(await teamsOf(guest), teams);
+    await waitEnd(host, guest);
+
+    // --- NEXT, then 2 v 2: each friend with a CPU team-mate
+    await host.evaluate(() => Phaser.GAMES[0].state.states.postmatchstate.onNextState());
+    await Promise.all([host, guest].map((p) => waitState(p, 'randomstate')));
+    await host.waitForTimeout(1200);
+    const at2 = await centreOf(host, 'g.state.states.randomstate.matchModePanel.btn2');
+    await host.mouse.click(at2.x, at2.y);
+    await guest.waitForFunction(() => {
+      for (const m of Object.values(window.__bb.c)) if (m.exports && m.exports.Inventory) return m.exports.Inventory.instance.matchData.matchMode === 1;
+      return false;
+    }, null, { timeout: 10000 });
+    await playToTheEnd(host, guest, 12);
+    assert.deepEqual(await teamsOf(host), [['P1', 'CPU'], ['P2', 'CPU']], 'each friend with a CPU team-mate');
+    await waitEnd(host, guest);
+
+    assert.deepEqual(host.errors, [], 'no uncaught errors on host');
+    assert.deepEqual(guest.errors, [], 'no uncaught errors on guest');
+  } finally {
+    await browser.close();
+    server.stop();
+  }
+});
