@@ -7,6 +7,8 @@ its own folder under `games/`.
 | Game | Folder | Players |
 |---|---|---|
 | Stan & Lisa and Friends | [`games/stan-and-lisa/`](games/stan-and-lisa/) | 1–2, online co-op |
+| Basketball Stars | [`games/basketball/`](games/basketball/) | 1–2, online versus |
+| Goal Heads | [`games/football/`](games/football/) | 1–2, online versus |
 
 ## Playing together online
 
@@ -28,6 +30,8 @@ usually helps.
 index.html, hub/          the game list (rendered from games.json)
 games.json                registry of games: id, title, path, thumbnail, ...
 games/stan-and-lisa/      the first game (see below)
+games/basketball/         Basketball Stars, online lockstep (see its README)
+games/football/           Goal Heads, our own engine on the original art (see its README)
 shared/online/            reusable online kit: invite links, WebRTC link, lobby, QR, chat
 shared/vendor/            bundled third-party code (see shared/vendor/LICENSES.md)
 scripts/                  tooling: checks, level generator, site build, dev server

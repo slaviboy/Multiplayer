@@ -33,6 +33,7 @@ const TYPES = {
   '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg',
   '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
   '.fnt': 'text/plain; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/plain; charset=utf-8',
