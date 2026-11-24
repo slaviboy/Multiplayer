@@ -18,6 +18,12 @@
   - The `levelMenu` state only exists after the Play button; online code adds it.
   - Devices need a `body` (camera and checkpoints read it); new ones use a fixture-less
     static body.
+- `games/basketball/` is a compiled webpack bundle (Phaser 2 + nape + DragonBones) with
+  two documented edits (see its README): `window.__bb` exposes webpack's module loader,
+  and the domain check passes. Patch it from `online/` by finding classes by export
+  name. Online play is deterministic lockstep: anything that changes a match outside a
+  tick, or reads the clock, `Math.random` or native trig inside one, desyncs it; the
+  e2e test checks `window.__online.desyncs` stays empty.
 - Levels: edit `levels-src/*.mjs`, run `npm run levels`, prove with
   `LEVEL=<name> npm run test:e2e` (bot walkthrough). See `levels-src/README.md`.
 - Before committing: `npm run check` and `npm test` (the pre-commit hook runs both).
