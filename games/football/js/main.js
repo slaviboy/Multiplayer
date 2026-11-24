@@ -136,6 +136,7 @@ async function startMatch({ mode, kits, names, stadium, seconds, level = 'normal
     acc: 0,
     resultShown: false,
   };
+  if (window.__football.testScore) app.match.s.score = window.__football.testScore.slice(); // tests: no draws
   screens.hide();
   sound.stopMusic();
   sound.play('whistle-start', { volume: 0.4 });
@@ -293,6 +294,7 @@ function frame(now) {
   last = now;
   renderer.resize();
   const m = app.match;
+  document.body.classList.toggle('fb-in-match', !!m && !m.resultShown);
   if (m) {
     let alpha = 1;
     if (m.mode === 'online') alpha = online.frame(dt);
@@ -365,6 +367,7 @@ async function boot() {
 
 window.__football = {
   app,
+  sound,
   /** Tests: run ticks by hand (pause the match first) and redraw. */
   step(inputs = [0, 0], n = 1) {
     for (let i = 0; i < n; i++) runTick(inputs);

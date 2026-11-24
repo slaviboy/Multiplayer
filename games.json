@@ -19,6 +19,16 @@
       "players": "1–2",
       "online": "Online versus",
       "tags": ["Sports", "Versus", "Arcade"]
+    },
+    {
+      "id": "football",
+      "title": "Goal Heads",
+      "path": "games/football/",
+      "description": "Big-headed one-on-one football with kicks, headers and lobs. Play the CPU, a friend on the same keyboard, or a friend online.",
+      "thumbnail": "games/football/thumbnail.jpg",
+      "players": "1–2",
+      "online": "Online versus",
+      "tags": ["Sports", "Versus", "Arcade"]
     }
   ]
 }

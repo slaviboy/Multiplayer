@@ -76,6 +76,12 @@ export class Online {
     return this.link ? this.link.send(msg) : false;
   }
 
+  /** A lockstep match is on screen and not over yet. */
+  get playing() {
+    const m = this.api.match;
+    return !!(this.net && m && m.net === this.net && !m.resultShown);
+  }
+
   nameOf(slot) {
     const kit = slot === this.me ? this.myKit : this.partnerKit;
     const m = this.api.match;
@@ -225,11 +231,15 @@ export class Online {
       this.token = this.role === 'host' ? this.link.token : info.token || this.token;
       this.saveSession();
       this.lobby.showConnected(SIDES[this.me]);
+      // the online bar is small: just "Left" / "Right" there
+      const full = this.lobby.characters;
+      this.lobby.characters = full.map((c) => ({ ...c, name: c.id === 'left' ? 'Left' : 'Right' }));
       this.lobby.showHud({ myCharId: SIDES[this.me], onLeave: () => this.confirmLeave(), onChat: () => this.chat.toggle() });
+      this.lobby.characters = full;
       this.chat.setEnabled(true);
       this.updateHud();
-      this.send({ t: 'hi', kit: this.myKit, m: this.net ? this.net.no : 0 });
-      if (this.net) {
+      this.send({ t: 'hi', kit: this.myKit, m: this.playing ? this.net.no : 0 });
+      if (this.playing) {
         // back after a blip: ask for the inputs that were lost meanwhile
         this.send({ t: 'resend', m: this.net.no, k: this.net.ls.tick });
         return;
@@ -305,11 +315,11 @@ export class Online {
   }
 
   maybeStart() {
-    if (this.role !== 'host' || !this.live || !this.myKit || !this.partnerKit || this.net) return;
+    if (this.role !== 'host' || !this.live || !this.myKit || !this.partnerKit || this.playing) return;
     clearTimeout(this.startTimer);
     this.showWaiting();
     this.startTimer = setTimeout(() => {
-      if (this.role !== 'host' || !this.live || !this.myKit || !this.partnerKit || this.net) return;
+      if (this.role !== 'host' || !this.live || !this.myKit || !this.partnerKit || this.playing) return;
       const rtt = this.link.rtt || 120;
       const delay = Math.max(2, Math.min(10, Math.ceil((rtt / 2 + 30) / 25)));
       const msg = {
@@ -476,7 +486,7 @@ export class Online {
         return (
           fromHost && isInt(m.m) && m.m > 0 && isInt(m.delay) && m.delay >= 1 && m.delay <= 12 &&
           Array.isArray(m.kits) && m.kits.length === 2 && m.kits.every((k) => !!validKit(k)) &&
-          STADIUMS.includes(m.stadium) && [60, 90, 120].includes(m.seconds)
+          STADIUMS.includes(m.stadium) && isInt(m.seconds) && m.seconds >= 5 && m.seconds <= 600
         );
       case 'in':
         return isInt(m.m) && isInt(m.k) && m.k >= 0 && Array.isArray(m.v) && m.v.length <= 420 && m.v.every((b) => isInt(b) && b >= 0 && b <= MAX_INPUT);
@@ -497,11 +507,11 @@ export class Online {
     switch (m.t) {
       case 'hi':
         // the partner (re)joined: if they are not in our match any more, it's over
-        if (n && m.m !== n.no) this.abandonMatch();
+        if (this.playing && m.m !== n.no) this.abandonMatch();
         if (m.kit) this.onPartnerReady(validKit(m.kit));
         break;
       case 'ready':
-        if (n && this.api.match && this.api.match.net === n && !this.api.match.resultShown) this.abandonMatch();
+        if (this.playing) this.abandonMatch();
         this.onPartnerReady(validKit(m.kit));
         break;
       case 'start':

@@ -777,14 +777,14 @@ body {
 .fb-pad-group {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: min(10px, 2vw);
   pointer-events: auto;
 }
 
 .fb-pad-btn {
   position: relative;
-  width: clamp(58px, 15vh, 84px);
-  height: clamp(58px, 15vh, 84px);
+  width: min(clamp(58px, 15vh, 84px), 17vw);
+  height: min(clamp(58px, 15vh, 84px), 17vw);
   border-radius: 50%;
   border: 3px solid var(--fb-ink);
   background: radial-gradient(circle at 50% 35%, #ffc94a, var(--fb-orange) 60%, var(--fb-orange-dark));
@@ -809,6 +809,7 @@ body {
 }
 
 .fb-pad-btn span {
+  font-family: var(--fb-font);
   position: absolute;
   bottom: -2px;
   left: 50%;
@@ -828,8 +829,8 @@ body {
 }
 
 .fb-pad-jump {
-  width: clamp(66px, 18vh, 96px);
-  height: clamp(66px, 18vh, 96px);
+  width: min(clamp(66px, 18vh, 96px), 19vw);
+  height: min(clamp(66px, 18vh, 96px), 19vw);
   background: radial-gradient(circle at 50% 35%, #a6f07a, var(--fb-green) 60%, var(--fb-green-dark));
 }
 
@@ -839,15 +840,54 @@ body {
   opacity: 1;
 }
 
+/* a phone held upright: the pitch is small */
+@media (orientation: portrait) and (pointer: coarse) {
+  .fb-in-match::after {
+    content: 'Turn your phone sideways for a bigger pitch';
+    position: fixed;
+    left: 50%;
+    top: 22%;
+    transform: translateX(-50%);
+    padding: 8px 14px;
+    border-radius: 12px;
+    background: rgba(14, 21, 48, 0.75);
+    font-size: 15px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
+
 .fb-noscript {
   position: fixed;
   inset: 40% 0 auto;
   text-align: center;
 }
 
-/* the online bar sits over the scoreboard's place; the game moves the board down */
+/* the online bar: top right on the other screens; during a match centred at the
+   top, with the scoreboard moved down under it */
 .ol-hud {
   font-family: system-ui, sans-serif;
+  left: auto;
+  right: max(10px, env(safe-area-inset-right));
+  transform: none;
+  transform-origin: 100% 0;
+}
+
+.fb-in-match .ol-hud {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  transform-origin: 50% 0;
+}
+
+@media (max-height: 500px) {
+  .ol-hud {
+    transform: scale(0.82);
+  }
+
+  .fb-in-match .ol-hud {
+    transform: translateX(-50%) scale(0.82);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

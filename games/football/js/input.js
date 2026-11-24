@@ -22,6 +22,10 @@ export class Controls {
     this.down = new Set(); // KeyboardEvent.code
     this.letters = new Set(); // KeyboardEvent.key, lower case
     this.touch = 0; // bits held on the touch buttons
+    // presses since the game last read the keys: a tap shorter than a tick still counts
+    this.latched = new Set();
+    this.latchedLetters = new Set();
+    this.touchLatched = 0;
     this.enabled = false;
     const onDown = (e) => {
       if (!this.enabled || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -30,7 +34,11 @@ export class Controls {
       const known = e.code in LEFT_SET || e.code in RIGHT_SET || e.code in SOLO_EXTRA;
       if (known) e.preventDefault(); // arrows and space must not scroll the page
       this.down.add(e.code);
-      if (e.key && e.key.length === 1) this.letters.add(e.key.toLowerCase());
+      if (!e.repeat) this.latched.add(e.code);
+      if (e.key && e.key.length === 1) {
+        this.letters.add(e.key.toLowerCase());
+        if (!e.repeat) this.latchedLetters.add(e.key.toLowerCase());
+      }
     };
     const onUp = (e) => {
       this.down.delete(e.code);
@@ -47,7 +55,10 @@ export class Controls {
   releaseAll() {
     this.down.clear();
     this.letters.clear();
+    this.latched.clear();
+    this.latchedLetters.clear();
     this.touch = 0;
+    this.touchLatched = 0;
     if (this.pad) for (const b of this.pad.querySelectorAll('.fb-pad-btn')) b.classList.remove('on');
   }
 
@@ -56,16 +67,25 @@ export class Controls {
     if (!on) this.releaseAll();
   }
 
+  /** Keys of `map` held now or pressed since the last read (which forgets those presses). */
   bits(map) {
     let b = 0;
     for (const code of this.down) if (code in map) b |= map[code];
+    for (const code of this.latched) {
+      if (!(code in map)) continue;
+      b |= map[code];
+      this.latched.delete(code);
+    }
     return b;
   }
 
   /** One player using any of the keys, and the touch buttons. */
   solo() {
-    let b = this.bits(LEFT_SET) | this.bits(RIGHT_SET) | this.bits(SOLO_EXTRA) | this.touch;
+    let b = this.bits(LEFT_SET) | this.bits(RIGHT_SET) | this.bits(SOLO_EXTRA) | this.touch | this.touchLatched;
+    this.touchLatched = 0;
     for (const l of this.letters) b |= BY_LETTER[l] || 0;
+    for (const l of this.latchedLetters) b |= BY_LETTER[l] || 0;
+    this.latchedLetters.clear();
     return clean(b);
   }
 
@@ -93,6 +113,7 @@ export class Controls {
       if (!btn) return;
       e.preventDefault();
       held.set(e.pointerId, btn);
+      this.touchLatched |= KEY[btn.dataset.key];
       update();
     });
     // sliding a thumb from one button to the next (left ↔ right) switches them
