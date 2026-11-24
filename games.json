@@ -9,6 +9,15 @@
       "players": "1–2",
       "online": true,
       "tags": ["Co-op", "Puzzle", "Platformer"]
+    },
+    {
+      "id": "basketball",
+      "title": "Basketball Stars",
+      "path": "games/basketball/",
+      "description": "Fast 1-on-1 and 2-on-2 street basketball with dunks, steals and super shots. Play the CPU or a friend on the same keyboard.",
+      "thumbnail": "games/basketball/thumbnail.jpg",
+      "players": "1–2",
+      "tags": ["Sports", "Versus", "Arcade"]
     }
   ]
 }

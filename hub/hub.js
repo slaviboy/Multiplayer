@@ -16,7 +16,8 @@ function el(tag, attrs = {}, children = []) {
 function card(game) {
   const badges = el('div', { class: 'badges' }, [
     el('span', { class: 'badge', text: `${game.players} players` }),
-    game.online ? el('span', { class: 'badge badge--online', text: 'Online co-op' }) : null,
+    // `online`: true for "Online co-op", or the badge text itself (e.g. "Online versus")
+    game.online ? el('span', { class: 'badge badge--online', text: typeof game.online === 'string' ? game.online : 'Online co-op' }) : null,
     ...(game.tags || []).map((tag) => el('span', { class: 'badge badge--tag', text: tag })),
   ]);
   return el('li', { class: 'game' }, [
