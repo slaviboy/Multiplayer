@@ -193,7 +193,26 @@ export function buildLevel(src) {
   markers.delete('k');
 
   const used = new Set();
-  for (const obj of src.objects || []) {
+  // `cell: [col, row]` (any object) and `rect` on a ladder place an object by
+  // coordinates instead of a map marker: they become a private marker here.
+  let synthetic = 0;
+  const placed = (src.objects || []).map((o) => {
+    if (!o.cell && !(o.kind === 'ladder' && o.rect)) return o;
+    const { cell, ...rest } = o;
+    let cells;
+    if (cell) cells = [cell];
+    else {
+      const [c0, r0, w, h] = o.rect;
+      cells = [];
+      for (let r = r0; r < r0 + h; r++) for (let c = c0; c < c0 + w; c++) cells.push([c, r]);
+      delete rest.rect;
+    }
+    for (const [c, r] of cells) if (c < 0 || r < 0 || c >= width || r >= height) fail(`${o.kind} at ${c},${r} is outside the map`);
+    const key = `@${synthetic++}`;
+    markers.set(key, cells);
+    return { ...rest, at: key };
+  });
+  for (const obj of placed) {
     const { kind, at, rect, pos, ...props } = obj;
     if (at) used.add(at);
     if (kind === 'ladder') {

@@ -59,6 +59,26 @@ test('thorns runs, checkpoints, ladders and map properties', () => {
   ]);
 });
 
+test('objects can be placed by cell, and ladders by rect, without map markers', () => {
+  const level = buildLevel({
+    file: 't.json',
+    map: frame(['#..............', '#..............', '#S.W.A.B.......']),
+    objects: [
+      { kind: 'pusher', cell: [9, 3], group: 1 },
+      { kind: 'lever', cell: [11, 3], group: 1 },
+      { kind: 'ladder', rect: [13, 1, 1, 3], group: 1 },
+    ],
+  });
+  const objs = objectsOf(level, 'Objects');
+  const pusher = objs.find((o) => o.gid === 16);
+  const lever = objs.find((o) => o.gid === 17);
+  assert.deepEqual([pusher.x / 32, pusher.y / 32], [9, 5], 'same as a marker in that cell');
+  assert.deepEqual([lever.x / 32, lever.y / 32], [11, 5]);
+  const ladder = objs.find((o) => o.type === 'ladder');
+  assert.deepEqual([ladder.x / 32, ladder.y / 32, ladder.width / 32, ladder.height / 32], [13, 1, 1, 3]);
+  assert.throws(() => buildLevel({ file: 't.json', map: frame(['#S.W.A.B']), objects: [{ kind: 'box', cell: [40, 1] }] }), /outside the map/);
+});
+
 test('broken sources are rejected with a clear message', () => {
   assert.throws(() => buildLevel({ file: 'w.json', map: ['###', '####', '###'] }), /row 1 has 4 columns/);
   assert.throws(() => buildLevel({ file: 'n.json', map: frame(['#.W.A.B']) }), /exactly one Stan/);
