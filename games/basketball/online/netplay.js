@@ -212,6 +212,7 @@ function onStatus(status, info = {}) {
     S.lobby.characters = characters();
     S.lobby.showConnected(SIDES[me()]);
     S.lobby.showHud({ myCharId: SIDES[me()], onLeave: leaveOnline, onChat: () => S.chat.toggle() });
+    placeHud();
     S.chat.setEnabled(true);
     updateHud();
     if (S.match) {
@@ -241,6 +242,7 @@ function onStatus(status, info = {}) {
 }
 
 function updateHud() {
+  placeHud();
   if (!S.link) return;
   const rtt = S.link.rtt;
   S.lobby.setHudPing(S.connected ? rtt : null, !S.connected ? 'away' : rtt > 200 ? 'slow' : 'ok');
@@ -872,6 +874,7 @@ function patchStateChanges() {
       toSelectIfReady();
       if (current() !== 'randomstate' && current() !== 'postmatchstate') S.lobby.banner(null);
       if (current() === 'randomstate') lockPanels();
+      placeHud();
     }, 0),
   );
 }
@@ -886,13 +889,50 @@ function bubbleAnchor(who) {
   const Ctrl = slot === 0 ? S.mods.PlayerController : S.mods.PlayerController2;
   const p = players.find((pl) => pl.controller instanceof Ctrl);
   if (!p || !p.graphic || !p.graphic.worldVisible) return null;
-  const b = p.graphic.getBounds();
+  // DragonBones characters have no real bounds: measure from the feet (the graphic's
+  // origin) and the head (its slot's position, the middle of the face)
+  const head = p.armature && p.armature.getSlot('head');
+  if (!head || !head.display) return null;
+  const feet = p.graphic.worldPosition;
+  const face = head.display.worldPosition;
   const canvas = S.game.canvas.getBoundingClientRect();
   const k = canvas.width / S.game.width;
+  const headTop = face.y - 0.5 * Math.abs(feet.y - face.y); // a little above the hair
   return {
-    x: Math.max(60, Math.min(window.innerWidth - 60, canvas.left + (b.x + b.width / 2) * k)),
-    y: Math.max(70, canvas.top + b.y * k),
+    x: Math.max(60, Math.min(window.innerWidth - 60, canvas.left + face.x * k)),
+    y: Math.max(56, canvas.top + headTop * k),
   };
+}
+
+/**
+ * The online bar (ping, player, chat, leave) goes at the top: during a match it is
+ * centred at the very top and the game's scoreboard moves down to make room for
+ * it; on the other screens it sits in the top-left corner.
+ */
+function placeHud() {
+  const hud = S.lobby && S.lobby.hud;
+  if (!hud || !S.game) return;
+  const canvas = S.game.canvas.getBoundingClientRect();
+  const k = canvas.width / S.game.width;
+  const small = window.innerHeight <= 500;
+  const inMatch = !!S.match && current() === 'gameplay' && !!core() && !!core().timer;
+  hud.style.bottom = 'auto';
+  hud.style.top = `${Math.round(canvas.top + (inMatch ? 6 : 8))}px`;
+  hud.style.left = inMatch ? `${Math.round(canvas.left + canvas.width / 2)}px` : `${Math.round(canvas.left + 8)}px`;
+  hud.style.transformOrigin = inMatch ? '50% 0' : '0 0';
+  hud.style.transform = `${inMatch ? 'translateX(-50%) ' : ''}${small ? 'scale(0.8)' : ''}` || 'none';
+  if (inMatch) makeRoomForHud(hud.getBoundingClientRect().height + 12, k);
+}
+
+/** Moves the scoreboard (score panel and clock) down by `px` screen pixels. */
+function makeRoomForHud(px, k) {
+  const c = core();
+  for (const o of [c.infoPanel, c.timer]) {
+    if (!o || !o.parent) continue;
+    if (o._olBaseY === undefined) o._olBaseY = o.y;
+    const scale = (o.parent.worldScale && o.parent.worldScale.y) || 1;
+    o.y = o._olBaseY + px / (k * scale);
+  }
 }
 
 // ---------------------------------------------------------------- boot
@@ -940,6 +980,7 @@ function init(game) {
   patchPostMatch(proto('postmatchstate'));
   patchMenu(proto('menu'));
   patchStateChanges();
+  window.addEventListener('resize', () => setTimeout(placeHud, 60));
   if (current() === 'menu') addOnlineButton(st.menu);
 
   window.__online = {
