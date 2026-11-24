@@ -443,10 +443,11 @@ function cloud(ctx, x, y, s, color) {
   }
 }
 
-/** A sky picture the size of the level, drawn behind everything. */
+/** A sky picture for a level of this size, at half resolution (show it scaled 2x). */
 export function paintSky(game, width, height, env) {
-  const bmd = game.make.bitmapData(width, height);
+  const bmd = game.make.bitmapData(Math.ceil(width / 2), Math.ceil(height / 2));
   const ctx = bmd.ctx;
+  ctx.scale(0.5, 0.5); // draw in level pixels
   const rnd = seeded(width * 3 + height);
   const g = ctx.createLinearGradient(0, 0, 0, height);
   g.addColorStop(0, env.sky[0]);
@@ -940,6 +941,7 @@ export function patchEnvironments(req) {
     if (env) {
       const layer = this.game.layers.background;
       const sky = this.game.make.image(0, 0, paintSky(this.game, this.options.width, this.options.height, env));
+      sky.scale.set(2);
       // replaces the temple's back wall
       layer.children.forEach((c) => (c.visible = false));
       layer.addChild(sky);
@@ -953,6 +955,28 @@ export function patchEnvironments(req) {
     const env = envOf(this);
     if (env && env.dark && this._ext && !this._ext.darkness) this._ext.darkness = 'dark';
     return result;
+  });
+
+  // The engine redraws its darkness over the whole level every frame. Long dark
+  // levels do that at half resolution: a quarter of the pixels to draw and upload.
+  wrap(Level, 'setupDarkness', function (orig, args) {
+    const result = orig.apply(this, args);
+    const env = envOf(this);
+    if (env && env.dark && this.darkness && this.darknessBmd) {
+      const full = this.darknessBmd;
+      const half = this.game.make.bitmapData(Math.ceil(full.width / 2), Math.ceil(full.height / 2));
+      half.offset = full.offset;
+      half.ctx.scale(0.5, 0.5); // the engine draws in level pixels
+      this.darknessBmd = half;
+      this.darkness.loadTexture(half);
+      this.darkness.scale.set(2);
+      full.destroy();
+    }
+    return result;
+  });
+  // the engine's per-frame callback still holds the old bitmap: draw into the current one
+  wrap(Level, 'updateDarkness', function (orig, args) {
+    return orig.apply(this, this.darknessBmd ? [this.darknessBmd] : args);
   });
 
   wrap(Level, 'update', function (orig, args) {
