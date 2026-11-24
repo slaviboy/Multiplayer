@@ -1,22 +1,10 @@
-/* The online pill and banners sit at the bottom: the top of the screen is the
-   game's scoreboard and control hints. */
-.ol-hud {
-  top: auto;
-  bottom: 8px;
-}
-
+/* The online bar is placed from netplay.js (placeHud): at the top, under the
+   scoreboard during a match. Banners sit at the bottom, between BACK and PLAY. */
 .ol-banner {
   bottom: 58px;
 }
 
-/* Landscape phones: a little smaller, so it clears the BACK and touch buttons. */
 @media (max-height: 500px) {
-  .ol-hud {
-    bottom: 4px;
-    transform: translateX(-50%) scale(0.8);
-    transform-origin: 50% 100%;
-  }
-
   .ol-banner {
     bottom: 44px;
   }

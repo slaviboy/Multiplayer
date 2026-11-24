@@ -171,6 +171,7 @@ export class Chat {
   frame() {
     this.raf = null;
     const now = performance.now();
+    const placed = [];
     for (const [who, b] of this.bubbles) {
       const at = this.anchorFor(who);
       if (!at || now > b.until) {
@@ -181,6 +182,17 @@ export class Chat {
       b.node.style.left = `${at.x}px`;
       b.node.style.top = `${at.y}px`;
       b.node.classList.toggle('ol-bubble-out', b.until - now < 400);
+      // two characters side by side: lift this bubble above the one already there
+      let y = at.y;
+      let r = b.node.getBoundingClientRect();
+      for (const p of placed) {
+        if (r.left < p.right && r.right > p.left && r.top < p.bottom && r.bottom > p.top) {
+          y -= r.bottom - p.top + 4;
+          b.node.style.top = `${y}px`;
+          r = b.node.getBoundingClientRect();
+        }
+      }
+      placed.push(r);
     }
     if (this.bubbles.size) this.raf = requestAnimationFrame(this.frame);
   }
