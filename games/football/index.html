@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1b2a55">
+  <meta name="description" content="Head football for one or two players: on one keyboard, against the computer, or online with a friend.">
+  <title>Goal Heads</title>
+  <link rel="icon" href="assets/sprites/ball.webp" type="image/webp">
+  <link rel="preload" href="assets/fonts/lilita-one-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../../shared/online/lobby.css">
+  <link rel="stylesheet" href="css/football.css">
+</head>
+<body>
+  <canvas id="pitch" aria-label="The match"></canvas>
+  <div id="screens"></div>
+
+  <button id="pause-btn" class="fb-corner" type="button" aria-label="Pause" hidden>
+    <span aria-hidden="true">❚❚</span>
+  </button>
+
+  <div id="pad" class="fb-pad" hidden>
+    <div class="fb-pad-group">
+      <button class="fb-pad-btn fb-pad-left" type="button" data-key="LEFT" data-slide="move" aria-label="Move left">
+        <img src="assets/ui/icon-right.webp" alt="">
+      </button>
+      <button class="fb-pad-btn" type="button" data-key="RIGHT" data-slide="move" aria-label="Move right">
+        <img src="assets/ui/icon-right.webp" alt="">
+      </button>
+    </div>
+    <div class="fb-pad-group">
+      <button class="fb-pad-btn fb-pad-kick" type="button" data-key="SHOT" aria-label="Low kick">
+        <img src="assets/ui/icon-shot.webp" alt=""><span>Shot</span>
+      </button>
+      <button class="fb-pad-btn fb-pad-kick fb-pad-lob" type="button" data-key="LOB" aria-label="High kick">
+        <img src="assets/ui/icon-shot.webp" alt=""><span>Aerial</span>
+      </button>
+      <button class="fb-pad-btn fb-pad-jump" type="button" data-key="JUMP" aria-label="Jump">
+        <img src="assets/ui/icon-jump.webp" alt="">
+      </button>
+    </div>
+  </div>
+
+  <noscript><p class="fb-noscript">Goal Heads needs JavaScript.</p></noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
